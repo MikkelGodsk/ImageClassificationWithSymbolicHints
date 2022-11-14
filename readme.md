@@ -16,6 +16,11 @@ Software:
 Python packages:
 In requirements.txt.
 
+## Hardware used
+The code was run on the main cluster of DTU. Here we used
+- NVIDIA-A100 gpus. 
+- 6 cores of whichever CPU was available, and 64GB ram (mainly for the SVMs).
+- 600GB of storage space for the datasets and models.
 
 ## Prepare CMPlaces to work with the code
 In the Python code, the folder `/work3/s184399/CMPlaces` will be present in multiple places. This should be replaced with whatever folder you, the user, are storing your dataset in.
