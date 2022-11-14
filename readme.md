@@ -2,31 +2,19 @@
 In order to run this code, you need to have the dataset and VGG16-models setup. Follow the instructions further down.
 
 To run the experiments, run the `main.py` file. Here, you should set `load_bert` to `False` in the `main()` function the first time you run the code as it will otherwise look for a saved model.
-Hyperparameter tuning was done using the `tune_addition_based_model.py`, `tune_BERT_hparams.py`, `tune_svm.py` files.
+Hyperparameter tuning was done using the `tune_bayes_fusion.py`, `tune_BERT_hparams.py`, `tune_svm.py` files.
 
 ## Software used:
 Software:
-- Python 3.8.2
+- Python 3.9.11
 - cuda 11.3
 - cudnn v8.2.0.53-prod-cuda-11.3
+- numpy 1.22.3-python-3.9.11-openblas-0.3.19
 - mmdnn 0.3.1 (https://github.com/microsoft/MMdnn)
 - tensorboard 2.8.0
 
 Python packages:
-- torch 1.12.0+cu102
-- torchvision 0.13.0+cu102
-- torchmetrics 0.9.3
-- optuna 2.10.0
-- numpy 1.22.2
-- nltk 3.6.2
-- scipy 1.7.1
-- wikipediaapi 0.5.4 (https://github.com/martin-majlis/Wikipedia-API)
-- wikidata 0.7.0
-- pytorch_lightning 1.6.3
-- sklearn 1.0.1
-- matplotlib 3.5.1
-- transformers 4.21.0
-- tqdm 4.62.2
+In requirements.txt.
 
 
 ## Prepare CMPlaces to work with the code
