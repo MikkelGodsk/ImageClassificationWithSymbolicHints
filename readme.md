@@ -2,7 +2,7 @@
 In order to run this code, you need to have the dataset and VGG16-models setup. Follow the instructions further down.
 
 To run the experiments, run the `main.py` file. Here, you should set `load_bert` to `False` in the `main()` function the first time you run the code as it will otherwise look for a saved model.
-Hyperparameter tuning was done using the `tune_bayes_fusion.py`, `tune_BERT_hparams.py`, `tune_svm.py` files.
+Hyperparameter tuning was done using the `tune_bayes_fusion.py`, `tune_BERT_hparams.py`, `tune_svm.py` files. For reproducibility, our hyperparameters are found in the `main.py` file.
 
 ## Software used:
 Software:
@@ -18,12 +18,12 @@ In requirements.txt.
 
 ## Hardware used
 The code was run on the main cluster of DTU. Here we used
-- NVIDIA-A100 gpus. 
+- NVIDIA-A100 gpus (1 is enough, we used multiple for hyperparameter tuning in parallel). 
 - 6 cores of whichever CPU was available, and 64GB ram (mainly for the SVMs).
 - 600GB of storage space for the datasets and models.
 
 ## Prepare CMPlaces to work with the code
-In the Python code, the folder `/work3/s184399/CMPlaces` will be present in multiple places. This should be replaced with whatever folder you, the user, are storing your dataset in.
+In the Python code, the folder `/work3/s184399/CMPlaces` will be present in multiple places. This should be replaced with whatever folder you are storing your dataset in.
 
 **Changes to make**<br>
 Let `[folder]` denote the folder you store your dataset in.
