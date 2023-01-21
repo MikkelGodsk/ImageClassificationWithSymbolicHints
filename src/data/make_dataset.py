@@ -1,19 +1,46 @@
 # -*- coding: utf-8 -*-
-import click
 import logging
 from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
+import hydra
+import os
+
+from src.data.utils import *
 
 
-@click.command()
-@click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path())
-def main(input_filepath, output_filepath):
+@hydra.main(version_base=None, config_path='../../conf', config_name="data_conf.yaml")
+def main(cfg):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
     """
     logger = logging.getLogger(__name__)
-    logger.info('making final data set from raw data')
+
+    logger.info('Creating folders')
+
+    data = cfg.data.data_folder   # Add CMPlaces or ImageNet
+    if not os.path.isdir(data): os.mkdir(data)
+
+    if cfg.data.download_cmplaces:
+        logger.info('Downloading CMPlaces')
+        download_dataset(data, cfg.data.cmplaces)
+
+        logger.info('Unpacking CMPlaces')
+        unpack_dataset(data, cfg.data.cmplaces)
+        
+        logger.info('Preparing CMPlaces')
+
+
+    if cfg.data.download_imagenet:
+        logger.info('Downloading ImageNet')
+        download_dataset(data, cfg.data.imagenet)
+
+        logger.info('Unpacking ImageNet')
+        unpack_dataset(data, cfg.data.cmplaces)
+
+        logger.info('Preparing ImageNet')
+        logger.info('Downloading Wikipedia articles')
+
+
 
 
 if __name__ == '__main__':

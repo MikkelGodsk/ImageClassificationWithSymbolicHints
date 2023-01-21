@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple, Union
 
-from LitModel import LitModel, torch
+from src.models.LitModel import LitModel, torch
 from sklearn.linear_model import SGDClassifier
 from sklearn.calibration import CalibratedClassifierCV
 import numpy as np

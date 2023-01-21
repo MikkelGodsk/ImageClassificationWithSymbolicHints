@@ -1,4 +1,4 @@
-from LitModel import *
+from src.models.LitModel import *
 import optuna
 import typing
 

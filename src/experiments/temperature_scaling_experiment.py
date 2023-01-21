@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import torch.multiprocessing
 torch.multiprocessing.set_sharing_strategy('file_system')
 
-from main import *
+from src.experiments.main import *
 
 # For test: train_val_split is changed and validation set is split.
 

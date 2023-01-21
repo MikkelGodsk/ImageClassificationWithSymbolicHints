@@ -1,4 +1,4 @@
-from main import *
+from src.experiments.main import *
 
 val_text_ds: TextModalityDS = load_text_ds('val_text.json')
 
