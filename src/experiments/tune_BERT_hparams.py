@@ -1,5 +1,5 @@
-from BERT import *
-from main import *
+from src.models.BERT import *
+from src.experiments.main import *
 
 
 dataset='ImageNet'

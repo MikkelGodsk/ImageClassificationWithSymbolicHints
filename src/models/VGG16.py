@@ -1,8 +1,8 @@
 import imp
 
-from LitModel import *
-from pytorch_vgg16 import KitModel
-from dataset import *
+from src.models.LitModel import *
+from src.models.pytorch_vgg16 import KitModel
+from src.features.dataset import *
 
 
 

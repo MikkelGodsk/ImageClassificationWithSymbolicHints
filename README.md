@@ -1,7 +1,31 @@
 ImageClassificationWithSymbolicHints
 ==============================
 
-A short description of the project.
+This repository contains the code for the paper "Image Classification With Symbolic Hints" by Jørgensen et al. 2023.
+
+## How to run this project:
+- `git clone https://github.com/MikkelGodsk/ImageClassificationWithSymbolicHints.git`
+- `conda env create -n ENVNAME --file environment.yml`  (using your own environment name instead of ENVNAME)
+- `conda activate ENVNAME`
+- get https://github.com/hollance/reliability-diagrams 
+- Fill in `conf/data/data.yml`
+- `python3 setup.py install`
+- `python3 src/data/make_dataset.py`
+- `python3 src/experiments/main.py`
+
+## Software used:
+Software:
+- Python 3.9.11
+- cuda 11.3
+- cudnn v8.2.0.53-prod-cuda-11.3
+- numpy 1.22.3-python-3.9.11-openblas-0.3.19
+
+## Hardware used
+The code was run on the main cluster of DTU. Here we used
+- NVIDIA-A100 gpus (1 is enough, we used multiple for hyperparameter tuning in parallel). 
+- 6 cores of whichever CPU was available, and 64GB ram (mainly for the SVMs).
+- 600GB of storage space for the datasets and models.
+
 
 Project Organization
 ------------

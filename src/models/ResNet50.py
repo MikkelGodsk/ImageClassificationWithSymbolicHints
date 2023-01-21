@@ -1,7 +1,7 @@
 #import torch
 #import torchvision
 from torchvision.models import resnet50, ResNet50_Weights
-from LitModel import *
+from src.models.LitModel import *
 #from transformers import AutoFeatureExtractor, ResNetForImageClassification
 
 

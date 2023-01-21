@@ -4,11 +4,11 @@ import torch
 import typing
 import numpy as np
 
-from MultimodalModel import *
-from main import evaluate_model
-from dataset import *
-import BERT
-import VGG16
+from src.models.MultimodalModel import *
+from src.experiments.main import evaluate_model
+from src.features.dataset import *
+import src.models.BERT as BERT
+import src.models.VGG16 as VGG16
 
 
 def objective(

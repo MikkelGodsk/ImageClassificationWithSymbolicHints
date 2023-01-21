@@ -1,6 +1,6 @@
 import numpy as np
 
-from main import *
+from src.experiments.main import *
 
 trial_no = 1  # of 4  (one-based indexing)
 

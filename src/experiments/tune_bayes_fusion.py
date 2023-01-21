@@ -2,7 +2,7 @@ import optuna
 import typing
 import numpy as np
 
-from main import *
+from src.experiments.main import *
 
 #TODO: Perhaps give callbacks in experiments?
 

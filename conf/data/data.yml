@@ -1,0 +1,32 @@
+# @package data
+data_folder:  # FILL IN (local directory to store data. Needs ~600GB)
+download_imagenet: True
+download_cmplaces: True
+
+cmplaces:
+  data_folder: "CMPlaces"
+  unpacked_folder: "UnpackedDataset"
+  file_names:
+    descriptions: 'descriptions.zip'
+    cmplaces: 'cmplaces.zip'
+    imagesPlaces205_resize: 'imagesPlaces205_resize.tar.gz'
+    trainvalsplit_places205: 'trainvalsplit_places205.tar.gz'
+    places205vgg: 'places205vgg.tar.gz'
+  urls:
+    descriptions:  # FILL IN FROM:             https://projects.csail.mit.edu/cmplaces/
+    cmplaces:  # FILL IN FROM:                 https://projects.csail.mit.edu/cmplaces/
+    imagesPlaces205_resize:  # FILL IN FROM:   http://places.csail.mit.edu/
+    trainvalsplit_places205:  # FILL IN FROM:  http://places.csail.mit.edu/
+    places205vgg: "http://places.csail.mit.edu/model/places205vgg.tar.gz"
+
+imagenet:
+  data_folder: "ImageNet"
+  unpacked_folder: "UnpackedDataset"
+  file_names:
+    ILSVRC2012_img_train: "ILSVRC2012_img_train.tar"
+    ILSVRC2012_img_val: "ILSVRC2012_img_val.tar"
+    ILSVRC2012_devkit_t12: "ILSVRC2012_devkit_t12.tar.gz"
+  urls:
+    ILSVRC2012_img_train:  # FILL IN FROM: https://image-net.org/
+    ILSVRC2012_img_val:  # FILL IN FROM: https://image-net.org/
+    ILSVRC2012_devkit_t12:  # FILL IN FROM: https://image-net.org/

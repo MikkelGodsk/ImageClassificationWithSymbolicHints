@@ -19,6 +19,8 @@ In requirements.txt.
 Install environment:
 `conda env create -n ENVNAME --file environment.yml`
 
+Also get: https://github.com/hollance/reliability-diagrams 
+
 ## Hardware used
 The code was run on the main cluster of DTU. Here we used
 - NVIDIA-A100 gpus (1 is enough, we used multiple for hyperparameter tuning in parallel). 

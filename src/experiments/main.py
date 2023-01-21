@@ -7,12 +7,12 @@ import torch
 import pytorch_lightning as pl
 import torchmetrics
 
-import VGG16
-import ResNet50
-import BERT
-import MultimodalModel
-import LitModel
-from dataset import *
+import src.models.VGG16 as VGG16
+import src.models.ResNet50 as ResNet50
+import src.models.BERT as BERT
+import src.models.MultimodalModel as MultimodalModel
+import src.models.LitModel as LitModel
+from src.features.dataset import *
 
 import warnings
 
