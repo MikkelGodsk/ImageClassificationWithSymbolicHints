@@ -1,0 +1,7 @@
+data_variables:
+  data_folder: "work3/s184399/CMPlaces"         # FILL IN (local directory to store data. Needs ~600GB)
+  descriptions_url: # FILL IN FROM:             https://projects.csail.mit.edu/cmplaces/
+  cmplaces_url: # FILL IN FROM:                 https://projects.csail.mit.edu/cmplaces/
+  imagesPlaces205_resize_url: # FILL IN FROM:   http://places.csail.mit.edu/
+  trainvalsplit_places205_url: # FILL IN FROM:  http://places.csail.mit.edu/
+  places205vgg_url: # FILL IN FROM:             http://places.csail.mit.edu/
