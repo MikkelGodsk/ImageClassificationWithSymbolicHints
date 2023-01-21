@@ -1,7 +1,7 @@
 import importlib
 
 import numpy as np
-from main import *
+from src.experiments.main import *
 
 """
 set_dataset('CMPlaces')
