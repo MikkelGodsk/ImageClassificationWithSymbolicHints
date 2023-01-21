@@ -8,6 +8,7 @@ from typing import Tuple, Union
 import pytorch_lightning as pl
 import torch
 import torchmetrics
+import click
 
 import src.models.BERT as BERT
 import src.models.LitModel as LitModel
@@ -19,7 +20,7 @@ from src.features.dataset import *
 warnings.filterwarnings("ignore")
 
 # Set dataset-variable to either "ImageNet" or "CMPlaces"
-dataset = "CMPlaces"  # "CMPlaces" #"ImageNet" #"CMPlaces"
+dataset = "CMPlaces" #None  # "CMPlaces" #"ImageNet" #"CMPlaces"
 
 train_bert = True  # Must be true the first time, then set to false the second time (for each dataset)
 
@@ -583,7 +584,16 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
     )
 
 
-def main():
+@click.command()
+@click.option(
+    "--dataset",
+    default="CMPlaces",
+    help="Dataset to use. Either 'CMPlaces' or 'ImageNet'",
+)
+def main(*args, **kwargs):
+    global dataset
+    dataset = kwargs['dataset']
+
     print(
         "\n\033[1m\033[34mUsing dataset: {:s}\033[0m".format(dataset)
     )  # Formatting codes: \033[Xm where X is an integer

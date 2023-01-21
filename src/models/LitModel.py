@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torchmetrics
 import torchvision
 
-from src.experiments.reliability import (
+from src.third_party_files.reliability_diagrams import (
     reliability_diagram,
 )  # From GitHub. Download https://github.com/hollance/reliability-diagrams and save as reliability.py
 

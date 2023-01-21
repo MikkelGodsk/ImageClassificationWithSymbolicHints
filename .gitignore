@@ -90,4 +90,5 @@ target/
 
 # Config file
 conf/data/data_full.yaml
-src/experiments/reliability.py
+src/third_party_files/mapping.json
+src/third_party_files/reliability_diagrams.py
