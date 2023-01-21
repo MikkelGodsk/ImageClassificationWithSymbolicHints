@@ -1,3 +1,12 @@
+# local package
+-e .
+
+# external requirements
+
+Sphinx
+coverage
+flake8
+python-dotenv>=0.5.1
 absl-py==1.2.0
 aiohttp==3.8.1
 aiosignal==1.2.0
