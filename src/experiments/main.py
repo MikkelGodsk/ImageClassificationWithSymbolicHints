@@ -20,9 +20,11 @@ from src.features.dataset import *
 warnings.filterwarnings("ignore")
 
 # Set dataset-variable to either "ImageNet" or "CMPlaces"
-dataset = "CMPlaces" #None  # "CMPlaces" #"ImageNet" #"CMPlaces"
+dataset = "CMPlaces"  # None  # "CMPlaces" #"ImageNet" #"CMPlaces"  # TODO: Make num classes and such be defined in main.
 
-train_bert = True  # Must be true the first time, then set to false the second time (for each dataset)
+train_bert = not os.path.isfile(
+    "BERT_model_" + dataset
+)  # Must be true the first time, then set to false the second time (for each dataset)
 
 # Enable/disable experiments. If experiment i is dependent on a previous experiment j, then at least a part of j will also be run.
 RUN_EXPERIMENT_1 = True
@@ -592,7 +594,7 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
 )
 def main(*args, **kwargs):
     global dataset
-    dataset = kwargs['dataset']
+    dataset = kwargs["dataset"]
 
     print(
         "\n\033[1m\033[34mUsing dataset: {:s}\033[0m".format(dataset)

@@ -6,7 +6,7 @@ from pathlib import Path
 import hydra
 from dotenv import find_dotenv, load_dotenv
 
-from src.data.utils import *
+import src.data.utils as utils
 
 
 @hydra.main(version_base=None, config_path="../../conf", config_name="data_conf.yaml")
@@ -24,22 +24,30 @@ def main(cfg):
 
     if cfg.data.download_cmplaces:
         logger.info("Downloading CMPlaces")
-        download_dataset(data, cfg.data.cmplaces)
+        # utils.download_dataset(data, cfg.data.cmplaces)
 
         logger.info("Unpacking CMPlaces")
-        unpack_dataset(data, cfg.data.cmplaces)
+        utils.unpack_dataset(data, cfg.data.cmplaces)
 
         logger.info("Preparing CMPlaces")
+        utils.prepare_cmplaces(cfg)
+
+        logger.info("Converting VGG16 from Caffe to PyTorch")
+        utils.convert_vgg16(cfg)
 
     if cfg.data.download_imagenet:
         logger.info("Downloading ImageNet")
-        download_dataset(data, cfg.data.imagenet)
+        utils.download_dataset(data, cfg.data.imagenet)
 
         logger.info("Unpacking ImageNet")
-        unpack_dataset(data, cfg.data.cmplaces)
+        utils.unpack_dataset(data, cfg.data.cmplaces)
+        utils.unpack_imagenet(cfg)
+
+        logger.info("Downloading Wikipedia articles")
+        utils.get_wiki_descriptions(cfg)
 
         logger.info("Preparing ImageNet")
-        logger.info("Downloading Wikipedia articles")
+        utils.prepare_imagenet(cfg)
 
 
 if __name__ == "__main__":
