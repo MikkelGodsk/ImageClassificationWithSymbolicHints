@@ -5,10 +5,10 @@ import warnings
 from time import time
 from typing import Tuple, Union
 
+import click
 import pytorch_lightning as pl
 import torch
 import torchmetrics
-import click
 
 import src.models.BERT as BERT
 import src.models.LitModel as LitModel

@@ -88,7 +88,11 @@ target/
 # Mypy cache
 .mypy_cache/
 
-# Config file
+# Other files
 conf/data/data_full.yaml
-src/third_party_files/mapping.json
-src/third_party_files/reliability_diagrams.py
+outputs/
+*.err
+*.out
+BERT_model_cmplaces
+BERT_model_imagenet
+lightning_logs/

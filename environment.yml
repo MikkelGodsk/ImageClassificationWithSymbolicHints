@@ -1,4 +1,4 @@
-name: papernew
+name: Image_classification_with_symbolic_hints
 channels:
   - pytorch
   - defaults

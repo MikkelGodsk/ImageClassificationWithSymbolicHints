@@ -18,13 +18,13 @@ def main(cfg):
 
     logger.info("Creating folders")
 
-    data = cfg.data.data_folder  # Add CMPlaces or ImageNet
+    data = cfg.data.data_folder
     if not os.path.isdir(data):
         os.mkdir(data)
 
     if cfg.data.download_cmplaces:
         logger.info("Downloading CMPlaces")
-        # utils.download_dataset(data, cfg.data.cmplaces)
+        utils.download_dataset(data, cfg.data.cmplaces)
 
         logger.info("Unpacking CMPlaces")
         utils.unpack_dataset(data, cfg.data.cmplaces)
@@ -40,11 +40,11 @@ def main(cfg):
         utils.download_dataset(data, cfg.data.imagenet)
 
         logger.info("Unpacking ImageNet")
-        utils.unpack_dataset(data, cfg.data.cmplaces)
-        utils.unpack_imagenet(cfg)
+        utils.unpack_dataset(data, cfg.data.imagenet)
+        utils.unpack_imagenet_train_set(cfg)
 
         logger.info("Downloading Wikipedia articles")
-        utils.get_wiki_descriptions(cfg)
+        utils.get_wiki_descriptions(cfg)  # Cannot run at DTU HPC.
 
         logger.info("Preparing ImageNet")
         utils.prepare_imagenet(cfg)

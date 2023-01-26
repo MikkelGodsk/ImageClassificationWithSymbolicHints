@@ -1,5 +1,5 @@
 # @package data
-data_folder: ""  # FILL IN (local directory to store data. Needs ~600GB)
+data_folder: ""  # FILL IN (local directory to store data in. Needs ~600GB)
 download_imagenet: True
 download_cmplaces: True
 

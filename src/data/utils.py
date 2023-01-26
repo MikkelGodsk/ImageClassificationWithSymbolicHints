@@ -27,16 +27,21 @@ def download_dataset(data, ds_group):
 def unpack_dataset(data, ds_group):
     logger = logging.getLogger(__name__)
     data_folder = os.path.join(data, ds_group.data_folder)
-    # unpacked_datafolder = os.path.join(data_folder, ds_group.unpacked_folder)  # Not to be used yet
     if not os.path.isdir(data_folder):
         os.mkdir(data_folder)
     for f_name in ds_group.file_names.values():
         full_path_src = os.path.join(data_folder, f_name)
-        if f_name.endswith(".tar.gz"):
+        assert os.path.isfile(full_path_src)
+        if f_name.endswith(".tar.gz") or f_name.endswith(".tar"):
             try:
                 logger.info(f"\tUnpacking {f_name}")
-                full_path_dst = os.path.join(data_folder, f_name[:-7])
-                tar = tarfile.open(full_path_src, "r:gz")
+                full_path_dst = os.path.join(
+                    data_folder,
+                    f_name[:-7] if f_name.endswith(".tar.gz") else f_name[:-4],
+                )
+                tar = tarfile.open(
+                    full_path_src, "r:gz" if f_name.endswith(".tar.gz") else "r:"
+                )
                 tar.extractall(path=full_path_dst)
                 tar.close()
             except FileNotFoundError:
@@ -55,41 +60,56 @@ def prepare_cmplaces(cfg):
     import csv
     import json
     import os
+    import shutil
+
+    logger = logging.getLogger(__name__)
 
     # Source files:
     # dataset_directory_src = "/work3/s184399/CMPlaces"
     dataset_directory_src = os.path.join(
-        cfg.data.datafolder, cfg.data.cmplaces.data_folder
+        cfg.data.data_folder, cfg.data.cmplaces.data_folder
     )
     description_folder_src = os.path.join(dataset_directory_src, "descriptions/text")
     image_folder_src = os.path.join(
-        dataset_directory_src, "images/data/vision/torralba/deeplearning/images256"
+        dataset_directory_src,
+        cfg.data.cmplaces.file_names.imagesPlaces205_resize[:-7],
+        "data/vision/torralba/deeplearning/images256",
     )
 
     image_train_split = os.path.join(
         dataset_directory_src,
-        "trainvalsplit/trainvalsplit_places205/train_places205.csv",
+        "trainvalsplit_places205/trainvalsplit/trainvalsplit_places205/train_places205.csv",
     )
     image_val_split = os.path.join(
-        dataset_directory_src, "trainvalsplit/trainvalsplit_places205/val_places205.csv"
+        dataset_directory_src,
+        "trainvalsplit_places205/trainvalsplit/trainvalsplit_places205/val_places205.csv",
     )
     text_train_split = os.path.join(
-        dataset_directory_src, "starterkit/labels/text_train.txt"
+        dataset_directory_src, "cmplaces/labels/text_train.txt"
     )
-    text_val_split = os.path.join(
-        dataset_directory_src, "starterkit/labels/text_val.txt"
-    )
+    text_val_split = os.path.join(dataset_directory_src, "cmplaces/labels/text_val.txt")
 
     # Destination files:
     # dataset_directory_dest = "/work3/s184399/CMPlaces/UnpackedDataset"
     dataset_directory_dest = os.path.join(
-        description_folder_src, cfg.data.cmplaces.unpacked_folder
+        dataset_directory_src, cfg.data.cmplaces.unpacked_folder
     )
     if not os.path.isdir(dataset_directory_dest):
         os.mkdir(dataset_directory_dest)
 
     train_dest = os.path.join(dataset_directory_dest, "train")
     val_dest = os.path.join(dataset_directory_dest, "val")
+
+    # Copy categories.txt
+    shutil.copy(
+        os.path.join(
+            dataset_directory_src,
+            cfg.data.cmplaces.file_names.cmplaces[:-4],
+            "labels",
+            "categories.txt",
+        ),
+        os.path.join(dataset_directory_dest, "categories.txt"),
+    )
 
     def get_files_from_split(src):
         split_files = []
@@ -109,9 +129,10 @@ def prepare_cmplaces(cfg):
             dest : A string specifying the destination folder
             split_df : A list with filenames in the split
         """
+        logger = logging.getLogger(__name__)
         if os.path.isdir(dest):
             # If directory already exists, abort
-            print("Path {:s} exists already".format(dest))
+            logger.info("Path {:s} exists already".format(dest))
             return False
 
         # Create new folder
@@ -126,7 +147,7 @@ def prepare_cmplaces(cfg):
             )  # Add one to descend into the folder with just 1 letter, e.g. 'a'
             if len(files) > 0:
                 os.mkdir(os.path.join(dest, class_name))
-                print(os.path.join(dest, class_name))
+                logger.info(os.path.join(dest, class_name))
             for file in files:
                 file_abs_path = os.path.join(root, file)
                 if os.path.relpath(file_abs_path, start=src) in split:
@@ -137,13 +158,16 @@ def prepare_cmplaces(cfg):
         return True
 
     def test_images(collected_images, split):
+        logger = logging.getLogger(__name__)
         # Are the collected files a subset of the split?
         split = list(map(lambda s: s.split("/")[-1], split))
 
         for root, folders, files in os.walk(collected_images):
             for file in files:
                 if not file in split:
-                    print("File {:s} does not belong!".format(os.path.join(root, file)))
+                    logger.info(
+                        "File {:s} does not belong!".format(os.path.join(root, file))
+                    )
                 assert file in split
 
         # Is the split a subset of the collected files (and is it uniquely represented)?
@@ -158,8 +182,9 @@ def prepare_cmplaces(cfg):
         """
         Collects text into a json file
         """
+        logger = logging.getLogger(__name__)
         if os.path.isfile(dest):
-            print("Path {:s} already exists".format(dest))
+            logger.info("Path {:s} already exists".format(dest))
             return False
 
         # Create a json file where for each category, we have a key-value pair of category x list of descriptions.
@@ -214,21 +239,28 @@ def prepare_cmplaces(cfg):
 def convert_vgg16(cfg):
     import os
 
+    logger = logging.getLogger(__name__)
+
     dataset_directory_src = os.path.join(
-        cfg.data.datafolder, cfg.data.cmplaces.data_folder
+        cfg.data.data_folder, cfg.data.cmplaces.data_folder
     )
 
     ir_folder = os.path.join(dataset_directory_src, "places205VGG16-IR")
-    os.mkdir(ir_folder)  # mkdir [folder]/places205VGG16-IR
+    if not os.path.isdir(ir_folder):
+        os.mkdir(ir_folder)  # mkdir [folder]/places205VGG16-IR
     torch_folder = os.path.join(dataset_directory_src, "places205VGG16-torch")
-    os.mkdir(torch_folder)  # mkdir [folder]/places205VGG16-torch
+    if not os.path.isdir(torch_folder):
+        os.mkdir(torch_folder)  # mkdir [folder]/places205VGG16-torch
 
     # make folder
     prototxt = os.path.join(
-        dataset_directory_src, "places205VGG16", "deploy_10.prototxt"
+        dataset_directory_src, "places205vgg", "places205VGG16", "deploy_10.prototxt"
     )
     caffemodel = os.path.join(
-        dataset_directory_src, "places205VGG16", "snapshot_iter_765280.caffemodel"
+        dataset_directory_src,
+        "places205vgg",
+        "places205VGG16",
+        "snapshot_iter_765280.caffemodel",
     )
     os.system(
         f"mmtoir -f caffe -n {prototxt} -w {caffemodel} -o {os.path.join(ir_folder, 'caffe_vgg16_IR')}"
@@ -256,6 +288,8 @@ def get_wiki_descriptions(cfg):
     import wikipediaapi as wiki
     from tqdm import tqdm
     from wikidata.client import Client
+
+    logger = logging.getLogger(__name__)
 
     directory = os.path.join(
         "src", "third_party_files"
@@ -310,10 +344,10 @@ def get_wiki_descriptions(cfg):
         else:
             articles[k] = article
 
-    print("\n")
-    print("Number of failures: {}".format(len(failures)))
-    print("Failures:")
-    print(failures)
+    logger.info("\n")
+    logger.info("Number of failures: {}".format(len(failures)))
+    logger.info("Failures:")
+    logger.info(failures)
 
     import nltk
     from nltk.corpus import wordnet as wn
@@ -327,15 +361,15 @@ def get_wiki_descriptions(cfg):
     )
     get_title_from_synset = lambda synset: synset.name().split(".")[0].replace("_", " ")
 
-    print("Failures:")
+    logger.info("Failures:")
     for failure in failures:
-        print(
+        logger.info(
             "WordNet id: {} - Title: {}".format(
                 failure, get_title_from_synset(get_synset_from_id(failure))
             )
         )
 
-    print("\n\nDifference in titles:")
+    logger.info("\n\nDifference in titles:")
     for wnid, article in articles.items():
         wordnet_title = get_title_from_synset(get_synset_from_id(wnid)).lower()
         article_title = article.title.lower()
@@ -343,7 +377,7 @@ def get_wiki_descriptions(cfg):
             wordnet_title not in article_title
             and wordnet_title not in article.summary.lower()
         ):
-            print(
+            logger.info(
                 "WordNet id: {} - WordNet title: {} - Wikipedia title: {}".format(
                     wnid, wordnet_title, article_title
                 )
@@ -360,7 +394,6 @@ def get_wiki_descriptions(cfg):
         os.path.join(
             cfg.data.data_folder,
             cfg.data.imagenet.data_folder,
-            cfg.data.imagenet.unpacked_folder,
             "wiki_descriptions.json",
         ),
         "w",
@@ -368,21 +401,47 @@ def get_wiki_descriptions(cfg):
         json.dump(summaries, f_obj)
 
 
-def unpack_imagenet(cfg):
+def unpack_imagenet_train_set(cfg):
     import os
     import tarfile
 
-    unpacked_dir = os.path.join(
-        cfg.data.datafolder,
-        cfg.data.imagenet.datafolder,
-        cfg.data.imagenet.unpacked_datafolder,
+    logger = logging.getLogger(__name__)
+    packed_dir = os.path.join(
+        cfg.data.data_folder,
+        cfg.data.imagenet.data_folder,
+        cfg.data.imagenet.file_names.ILSVRC2012_img_train[:-4],
     )
-    synsets = map(lambda x: x[:-4], os.listdir(unpacked_dir))
+    unpacked_dir = os.path.join(
+        cfg.data.data_folder,
+        cfg.data.imagenet.data_folder,
+        cfg.data.imagenet.unpacked_folder,
+        "train",
+    )
+    if not os.path.isdir(
+        os.path.join(
+            cfg.data.data_folder,
+            cfg.data.imagenet.data_folder,
+            cfg.data.imagenet.unpacked_folder,
+        )
+    ):
+        os.mkdir(
+            os.path.join(
+                cfg.data.data_folder,
+                cfg.data.imagenet.data_folder,
+                cfg.data.imagenet.unpacked_folder,
+            )
+        )
+    if not os.path.isdir(unpacked_dir):
+        os.mkdir(unpacked_dir)
+    assert os.path.isdir(
+        packed_dir
+    ), f"{packed_dir} is not a directory. Either the dataset has not been unpacked or the wrong path is given"
+    synsets = map(lambda x: x[:-4], os.listdir(packed_dir))
     for synset in synsets:
+        full_path_src = os.path.join(packed_dir, synset) + ".tar"
         full_path_dst = os.path.join(unpacked_dir, synset)
-        full_path_src = full_path_dst + ".tar"
         os.mkdir(full_path_dst)
-        tar = tarfile.open(full_path_src, "r:gz")
+        tar = tarfile.open(full_path_src, "r:")
         tar.extractall(path=full_path_dst)
         tar.close()
 
@@ -398,10 +457,12 @@ def prepare_imagenet(cfg):
     import scipy.io
     from nltk.corpus import wordnet as wn
 
+    logger = logging.getLogger(__name__)
+
     # ds_dir = "/work3/s184399/ImageNet"
     # unpacked_ds_dir = os.path.join(ds_dir, "UnpackedDataset")
-    ds_dir = os.path.join(cfg.data.datafolder, cfg.data.imagenet.data_folder)
-    unpacked_ds_dir = os.path.join(ds_dir, cfg.data.imagenet.unpacked_datafolder)
+    ds_dir = os.path.join(cfg.data.data_folder, cfg.data.imagenet.data_folder)
+    unpacked_ds_dir = os.path.join(ds_dir, cfg.data.imagenet.unpacked_folder)
 
     train_val_split = 0.8
 
@@ -415,16 +476,22 @@ def prepare_imagenet(cfg):
     """
 
     # Make list of synsets
-    print("Creating categories.txt")
+    logger.info("Creating categories.txt")
     meta = scipy.io.loadmat(
-        os.path.join(ds_dir, "dev_kit", "ILSVRC2012_devkit_t12", "data", "meta.mat")
+        os.path.join(
+            ds_dir,
+            cfg.data.imagenet.file_names.ILSVRC2012_devkit_t12[:-7],
+            "ILSVRC2012_devkit_t12",
+            "data",
+            "meta.mat",
+        )
     )
     synsets = [meta["synsets"][i][0][1][0] for i in range(0, 1000)]
 
     # Needs to unpack the validation set properly.
     if not os.path.isdir(os.path.join(unpacked_ds_dir, "val")):
         os.mkdir(os.path.join(unpacked_ds_dir, "val"))
-        print("Properly unpacking validation set")
+        logger.info("Properly unpacking validation set")
         for synset in synsets:
             d = os.path.join(unpacked_ds_dir, "val", synset)
             if not os.path.isdir(d):
@@ -434,7 +501,7 @@ def prepare_imagenet(cfg):
         with open(
             os.path.join(
                 ds_dir,
-                "dev_kit",
+                cfg.data.imagenet.file_names.ILSVRC2012_devkit_t12[:-7],
                 "ILSVRC2012_devkit_t12",
                 "data",
                 "ILSVRC2012_validation_ground_truth.txt",
@@ -444,8 +511,18 @@ def prepare_imagenet(cfg):
             for target in f_obj:
                 val_ground_truths.append(int(target))
 
-        for i, img in enumerate(sorted(os.listdir(os.path.join(ds_dir, "val_imgs")))):
-            source = os.path.join(ds_dir, "val_imgs", img)
+        for i, img in enumerate(
+            sorted(
+                os.listdir(
+                    os.path.join(
+                        ds_dir, cfg.data.imagenet.file_names.ILSVRC2012_img_val[:-4]
+                    )
+                )
+            )
+        ):
+            source = os.path.join(
+                ds_dir, cfg.data.imagenet.file_names.ILSVRC2012_img_val[:-4], img
+            )
             target = os.path.join(
                 unpacked_ds_dir, "val", synsets[val_ground_truths[i] - 1], img
             )
@@ -463,7 +540,14 @@ def prepare_imagenet(cfg):
                 sentences.append(sentence.replace("\n", "").lstrip())
         return sentences
 
-    with open("wiki_descriptions.json", "r") as f_obj:
+    with open(
+        os.path.join(
+            cfg.data.data_folder,
+            cfg.data.imagenet.data_folder,
+            "wiki_descriptions.json",
+        ),
+        "r",
+    ) as f_obj:
         wiki_descriptions = json.load(f_obj)
 
     for k, v in wiki_descriptions.items():
@@ -499,7 +583,7 @@ def prepare_imagenet(cfg):
             directory = os.path.join(unpacked_ds_dir, p, k)
             if os.path.isdir(directory):
                 shutil.rmtree(directory)
-                print("removed: {:s}".format(k))
+                logger.info("removed: {:s}".format(k))
 
     # Create a file [imagenet_folder]/UnpackedDataset/categories.txt
     with open(os.path.join(unpacked_ds_dir, "categories.txt"), "w") as f_obj:
@@ -538,7 +622,7 @@ def prepare_imagenet(cfg):
         v = set(val_desc[k])
         # assert not len(t.intersection(v))
         if len(t.intersection(v)):
-            print(k)
-            print(t.intersection(v))
+            logger.info(k)
+            logger.info(t.intersection(v))
         assert len(t)
         assert len(v)

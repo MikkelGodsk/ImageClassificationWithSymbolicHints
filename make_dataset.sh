@@ -3,7 +3,7 @@
 ### –- specify queue --
 #BSUB -q hpc
 ### -- set the job Name --
-#BSUB -J unpack_imagenet
+#BSUB -J unpack_dataset
 ### -- ask for number of cores (default: 1) --
 #BSUB -n 1
 #BSUB -R "span[hosts=1]"
@@ -30,8 +30,4 @@
 #BSUB -e cpu_%J.err
 # -- end of LSF options --
 
-for SYNSET in /work3/s184399/ImageNet/UnpackedDataset/train/*.tar; do
-    mkdir ${SYNSET%.tar}
-    tar -xf $SYNSET -C ${SYNSET%.tar}
-done
-
+make data

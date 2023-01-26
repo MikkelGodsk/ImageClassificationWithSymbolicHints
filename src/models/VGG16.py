@@ -1,15 +1,23 @@
 import imp
 
+from hydra import compose, initialize
+
 from src.features.dataset import *
 from src.models.LitModel import *
 from src.models.pytorch_vgg16 import KitModel
 
+initialize(config_path="conf", job_name="data_conf")
+cfg = compose(config_name="config")
 
 #### VGG16 ####
 class LitVGG16Model(LitModel):
-    _vgg16_weight_file: str = (
-        "/work3/s184399/CMPlaces/places205VGG16-torch/pytorch_vgg16.npy"
+    _vgg16_weight_file: str = os.path.join(
+        cfg.data.data_folder,
+        cfg.data.cmplaces.data_folder,
+        "places205VGG16-torch",
+        "pytorch_vgg16.npy",
     )
+    # "/work3/s184399/CMPlaces/places205VGG16-torch/pytorch_vgg16.npy"
 
     def __init__(self):
         super().__init__()
