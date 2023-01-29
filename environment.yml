@@ -170,4 +170,4 @@ dependencies:
       - wikipedia-api==0.5.4
       - yarl==1.8.2
       - zipp==3.11.0
-prefix: /zhome/18/7/137746/miniconda3/envs/papernew
+prefix: /zhome/18/7/137746/miniconda3/envs/Image_classification_with_symbolic_hints
