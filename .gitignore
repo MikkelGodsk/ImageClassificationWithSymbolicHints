@@ -93,6 +93,5 @@ conf/data/data_full.yaml
 outputs/
 *.err
 *.out
-BERT_model_cmplaces
-BERT_model_imagenet
+models/
 lightning_logs/
