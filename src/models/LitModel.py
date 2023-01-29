@@ -8,8 +8,9 @@ import torch.nn.functional as F
 import torchmetrics
 import torchvision
 
-from src.third_party_files.reliability_diagrams import \
-    reliability_diagram  # From GitHub. Download https://github.com/hollance/reliability-diagrams and save as reliability.py
+from src.third_party_files.reliability_diagrams import (
+    reliability_diagram,
+)
 
 gpu = torch.device("cuda")
 
@@ -25,7 +26,17 @@ class LitModel(pl.LightningModule, ABC):
     `self.save_hyperparameters()` should be called after calling `super().__init__()` in child classes.
 
     The models must individually put the data on the gpu at some point, e.g. images might go directly to `.cuda()`, while text might have to go through preprocessing and then on `.cuda()`.
+    Base class for my lightning modules.
+
+    Note: pl.LightningModule inherits from torch.nn.Module
+
+    Modified from: https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html
+
+    `self.save_hyperparameters()` should be called after calling `super().__init__()` in child classes.
+
+    The models must individually put the data on the gpu at some point, e.g. images might go directly to `.cuda()`, while text might have to go through preprocessing and then on `.cuda()`.
     """
+
 
     def __init__(self, n_bins=25, **kwargs):
         super().__init__()  # **kwargs)
@@ -51,18 +62,22 @@ class LitModel(pl.LightningModule, ABC):
     def forward_no_softmax(self, x):
         raise NotImplemented
 
+
     @abstractmethod
     def forward_no_top(self, x):
         raise NotImplemented
+
 
     @property
     @abstractmethod
     def top(self):
         raise NotImplemented
 
+
     def forward(self, x):
         z = self.forward_no_softmax(x)
         return self.softmax(z)
+
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -79,8 +94,10 @@ class LitModel(pl.LightningModule, ABC):
         )
         return loss
 
+
     def on_train_start(self):
         self.logger.log_hyperparams(self.hparams, {"hp_metric": 0})
+
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -100,6 +117,7 @@ class LitModel(pl.LightningModule, ABC):
         self.log("hp_val_ece", self.expected_calib_error, on_step=False, on_epoch=True)
         self.log("hp_val_mce", self.maximum_calib_error, on_step=False, on_epoch=True)
 
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         z = self(x)
@@ -115,16 +133,23 @@ class LitModel(pl.LightningModule, ABC):
         self.log("hp_test_ece", self.expected_calib_error, on_step=False, on_epoch=True)
         self.log("hp_test_mce", self.maximum_calib_error, on_step=False, on_epoch=True)
 
+
     @abstractmethod
     def _configure_optim_train(self):
         pass
+
 
     def configure_optimizers(self):
         return self._configure_optim_train()
 
 
+
+
 class CalibratedLitModel(LitModel):
     """
+    A wrapper to a LitModel classifier which enables calibration using temperature scaling.
+
+    Sets the classifier in eval-mode by default.
     A wrapper to a LitModel classifier which enables calibration using temperature scaling.
 
     Sets the classifier in eval-mode by default.
@@ -150,22 +175,28 @@ class CalibratedLitModel(LitModel):
         self.learning_rate = learning_rate
         self.max_iter = max_iter
 
+
     def forward_no_softmax(self, x):
         z = self.clf.forward_no_softmax(x)
         return z / self.temperature
 
+
     def forward_no_top(self, x):
         return self.clf.forward_no_top(x)
 
+
     def top(self):
         return self.clf.top
+
 
     def forward(self, x):
         z_scaled = self.forward_no_softmax(x)
         return self.softmax(z_scaled)
 
+
     def pred_labels_and_logits(self, ds: torch.utils.data.DataLoader):
         """
+        Useful for adjusting temperature.
         Useful for adjusting temperature.
         """
         labels = []
@@ -177,9 +208,11 @@ class CalibratedLitModel(LitModel):
                 logits.append(z.cpu())
                 labels.append(y.cpu())
 
+
             logits = torch.vstack(logits).to(self.temperature.device)
             labels = torch.hstack(labels).to(self.temperature.device)
         return labels, logits
+
 
     def calibrate(self, ds: torch.utils.data.DataLoader):
         """
@@ -193,6 +226,7 @@ class CalibratedLitModel(LitModel):
         criterion = torch.nn.CrossEntropyLoss()
         labels, logits = self.pred_labels_and_logits(ds)
 
+
         def eval():
             # Needs to be called multiple times to compute new gradients.
             optimizer.zero_grad()
@@ -203,6 +237,7 @@ class CalibratedLitModel(LitModel):
         optimizer.step(eval)
 
         return self
+
 
     def _configure_optim_train(self):
         return torch.optim.LBFGS(
@@ -215,17 +250,24 @@ class CalibratedLitModel(LitModel):
         The temperature parameter of this class turned out to be on the cpu and would not move to GPU.
         This turned out to solve the problem.
         After `trainer.fit`, call this method.
+        PyTorch complained about the BERT model not being all on GPU.
+        The temperature parameter of this class turned out to be on the cpu and would not move to GPU.
+        This turned out to solve the problem.
+        After `trainer.fit`, call this method.
         """
         super().cuda()
         self.temperature = self.temperature.cuda()
         self.clf = self.clf.cuda()
         return self
 
+
     def on_train_start(self):
         self.clf.eval()
 
+
     def on_train_end(self):
         self.clf.train()
+
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -242,6 +284,7 @@ class CalibratedLitModel(LitModel):
             "hp_temperature", self.temperature.item(), on_step=True, on_epoch=False
         )
         return loss
+
 
     """def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -262,6 +305,8 @@ class CalibratedLitModel(LitModel):
         self.log("hp_test_loss", loss.item(), on_step=True, on_epoch=False)
         self.log("hp_test_ece", self.expected_calib_error, on_step=False, on_epoch=True)
         self.log("hp_test_mce", self.maximum_calib_error, on_step=False, on_epoch=True)"""
+
+
 
 
 def evaluate_model(clf: pl.LightningModule, dataloader: torch.utils.data.DataLoader):
@@ -334,7 +379,9 @@ def reliability_plot(
     plt.rc("axes", titlesize=16)
     plt.rc("figure", titlesize=16)
 
+
     fig = reliability_diagram(**d, num_bins=10, return_fig=True)
+
 
     # Save as file
     if not os.path.isdir("reliability_plots"):
@@ -393,6 +440,7 @@ def manual_temperature_search_plot(
     calibration_lr=0.01,
     calibration_max_iter=50,
 ):
+    import os
     import numpy as np
 
     temperatures = (
@@ -430,6 +478,7 @@ def manual_temperature_search_plot(
     ece = torch.hstack(ece).detach().cpu().numpy()
     mce = torch.hstack(mce).detach().cpu().numpy()
 
+
     if model_name is not None:
         import matplotlib.pyplot as plt
 
@@ -458,3 +507,4 @@ def manual_temperature_search_plot(
         plt.clf()
 
     return temperatures, nll, avg_conf, ece, mce
+
