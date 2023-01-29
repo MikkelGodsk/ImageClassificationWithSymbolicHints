@@ -138,7 +138,7 @@ def prepare_cmplaces(cfg):
         # Create new folder
         os.mkdir(dest)
 
-        # Loop through each subfolder and create symlinks to the files
+        # Loop through each subfolder and move the files
         depth_baseline = len(src.split("/"))
         for root, folders, files in os.walk(src):
             depth = len(root.split("/"))
@@ -151,7 +151,8 @@ def prepare_cmplaces(cfg):
             for file in files:
                 file_abs_path = os.path.join(root, file)
                 if os.path.relpath(file_abs_path, start=src) in split:
-                    os.symlink(
+                    #os.symlink(
+                    shutil.move(
                         src=file_abs_path, dst=os.path.join(dest, class_name, file)
                     )
 
@@ -528,6 +529,7 @@ def prepare_imagenet(cfg):
             )
             if not os.path.isfile(target):
                 shutil.copy(source, target)  # .move(
+                #os.symlink(source, target)
 
     # Make datafiles of merged Wikipedia-hints and WordNet-hints
     ## Wikipedia
