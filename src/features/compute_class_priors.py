@@ -2,32 +2,18 @@ import importlib
 
 import numpy as np
 
-from src.experiments.main import *
-
-"""
-set_dataset('CMPlaces')
-
-text_ds: TextModalityDS = load_text_ds('val_text.json')  # For debugging only
-img_ds: ImageModalityDS = load_img_ds('val')
-
-log_prior_class_probs = MultimodalModel.estimate_prior_class_probs(BimodalDS(image_ds=img_ds, text_ds=text_ds), n_classes=205).numpy()
-np.savetxt('cmplaces_val_prior.txt', log_prior_class_probs)
+from src.features.dataset import set_dataset, load_text_ds, load_img_ds, TextModalityDS, ImageModalityDS, BimodalDS
+from src.models.MultimodalModel import estimate_prior_class_probs
 
 
-text_ds: TextModalityDS = load_text_ds('train_text.json')
-img_ds: ImageModalityDS = load_img_ds('train')  # This call will take a long time...
+for ds in ["ImageNet", "CMPlaces"]:
+    set_dataset(ds)
 
+    text_ds: TextModalityDS = load_text_ds("val_text.json")
+    img_ds: ImageModalityDS = load_img_ds("val")
 
-log_prior_class_probs = MultimodalModel.estimate_prior_class_probs(BimodalDS(image_ds=img_ds, text_ds=text_ds), n_classes=205).numpy()
-np.savetxt('cmplaces_train_prior.txt', log_prior_class_probs)
-"""
-# importlib.reload(dataset)
-set_dataset("ImageNet")
-
-text_ds: TextModalityDS = load_text_ds("val_text.json")
-img_ds: ImageModalityDS = load_img_ds("val")
-
-log_prior_class_probs = MultimodalModel.estimate_prior_class_probs(
-    BimodalDS(image_ds=img_ds, text_ds=text_ds), n_classes=1000
-).numpy()
-np.savetxt("imagenet_prior.txt", log_prior_class_probs)
+    log_prior_class_probs = estimate_prior_class_probs(
+        BimodalDS(image_ds=img_ds, text_ds=text_ds), 
+        n_classes=205 if ds == 'CMPlaces' else 1000 # Global variable from src.features.dataset
+    ).numpy()
+    np.savetxt(f"{ds.lower()}_prior.txt", log_prior_class_probs)

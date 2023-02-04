@@ -15,7 +15,7 @@ def estimate_prior_class_probs(
     Estimates the log-prior probabilities of each class.
     """
     counts = torch.zeros((n_classes,))
-    for _, c in ds:
+    for _, c in tqdm(ds):
         counts[c] += 1.0
     log_prior_probs = torch.log(counts / len(ds))
 

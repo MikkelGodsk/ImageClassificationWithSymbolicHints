@@ -7,6 +7,7 @@ import torchvision
 
 ds_dir = None
 dataset = None
+num_classes = None
 
 labels_translation_dict = None
 
@@ -16,10 +17,13 @@ labels_translation_dict = None
 def set_dataset(ds_name):
     global ds_dir  # Bad but an easier modification to also work for ImageNet
     global dataset
+    global num_classes
     if ds_name.lower() == "imagenet":
-        ds_dir = "/work3/s184399/ImageNet/UnpackedDataset"
+        ds_dir = "/work3/s184399/ImageNet/UnpackedDataset"  # TODO: Get from hydra
+        num_classes = 1000
     elif ds_name.lower() == "cmplaces":
         ds_dir = "/work3/s184399/CMPlaces/UnpackedDataset"
+        num_classes = 205
     else:
         raise ValueError()
     dataset = ds_name.lower()

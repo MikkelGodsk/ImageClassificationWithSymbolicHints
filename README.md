@@ -9,6 +9,7 @@ This repository contains the code for the paper "Image Classification With Symbo
 - `conda activate Image_classification_with_symbolic_hints`
 - Fill in `conf/data/data.yml` with URLs to dataset files and the directory to store the dataset in.
 - `make data`
+- `make priors`
 - `python3 src/experiments/main.py --dataset=<DATASET>` where `<DATASET>` is either `imagenet` or `cmplaces`. 
 
 ## Software used:

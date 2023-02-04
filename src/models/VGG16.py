@@ -6,8 +6,10 @@ from src.features.dataset import *
 from src.models.LitModel import *
 from src.models.pytorch_vgg16 import KitModel
 
-initialize(config_path="conf", job_name="data_conf")
-cfg = compose(config_name="config")
+
+initialize(config_path=os.path.join('..', 'conf'), job_name="data_conf")
+cfg = compose(config_name="data_conf")
+
 
 #### VGG16 ####
 class LitVGG16Model(LitModel):

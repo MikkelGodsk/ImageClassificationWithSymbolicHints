@@ -49,6 +49,13 @@ lint:
 test_environment:
 	$(PYTHON_INTERPRETER) test_environment.py
 
+## Make priors
+.ONESHELL:
+priors: requirements
+	source $(strip $(CONDA_LOC))/bin/activate
+	conda activate $(ENV_NAME)
+	$(PYTHON_INTERPRETER) src/features/compute_class_priors.py
+
 ## Run experiments
 .ONESHELL:
 run_imagenet: requirements

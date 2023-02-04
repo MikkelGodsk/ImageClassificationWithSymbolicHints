@@ -9,7 +9,7 @@ from dotenv import find_dotenv, load_dotenv
 import src.data.utils as utils
 
 
-@hydra.main(version_base=None, config_path="../../conf", config_name="data_conf.yaml")
+@hydra.main(version_base=None, config_path="../conf", config_name="data_conf.yaml")
 def main(cfg):
     """Runs data processing scripts to turn raw data from (../raw) into
     cleaned data ready to be analyzed (saved in ../processed).

@@ -89,9 +89,11 @@ target/
 .mypy_cache/
 
 # Other files
-conf/data/data_full.yaml
+src/conf/data/data_full.yaml
 outputs/
 *.err
 *.out
 models/
 lightning_logs/
+cmplaces_prior.txt
+imagenet_prior.txt

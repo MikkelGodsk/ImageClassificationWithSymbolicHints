@@ -19,12 +19,6 @@ from src.features.dataset import *
 
 warnings.filterwarnings("ignore")
 
-# Set dataset-variable to either "ImageNet" or "CMPlaces"
-dataset = "CMPlaces"  # None  # "CMPlaces" #"ImageNet" #"CMPlaces"  # TODO: Make num classes and such be defined in main.
-
-train_bert = not os.path.isfile(
-    "BERT_model_" + dataset
-)  # Must be true the first time, then set to false the second time (for each dataset)
 
 # Enable/disable experiments. If experiment i is dependent on a previous experiment j, then at least a part of j will also be run.
 RUN_EXPERIMENT_1 = True
@@ -38,20 +32,26 @@ RUN_EXPERIMENT_6 = False  # Not used in paper
 DEBUG = False
 
 # Parameters
-num_classes = 1000 if dataset.lower() == "imagenet" else 205
-bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
-bert_model_name = (
-    "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
-)
+bert_embedding_dim = None
+bert_model_name = None
+img_clf_name = None
+text_clf_name = None
+
+def set_dataset_main(dataset):
+    set_dataset(dataset)
+    global bert_embedding_dim
+    global bert_model_name
+    global img_clf_name
+    global text_clf_name
+    bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
+    bert_model_name = (
+        "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
+    )
+    img_clf_name = "ResNet50" if dataset.lower() == "imagenet" else "VGG16"
+    text_clf_name = "BERT-{:d}".format(bert_embedding_dim)
 
 # Checkpoint path
 checkpoint_path = "/work3/s184399/checkpoints"
-
-# Initialize dataset-module with dataset path
-set_dataset(dataset)
-
-img_clf_name = "ResNet50" if dataset.lower() == "imagenet" else "VGG16"
-text_clf_name = "BERT-{:d}".format(bert_embedding_dim)
 
 # Typedef
 img_clf_t = Union[ResNet50.LitResNet50Model, VGG16.LitVGG16Model]
@@ -595,6 +595,11 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
 def main(*args, **kwargs):
     global dataset
     dataset = kwargs["dataset"]
+    set_dataset_main(dataset)
+    train_bert = not os.path.isfile(
+        "BERT_model_" + dataset
+    )  # Must be true the first time, then set to false the second time (for each dataset)
+
 
     print(
         "\n\033[1m\033[34mUsing dataset: {:s}\033[0m".format(dataset)

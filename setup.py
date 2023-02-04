@@ -7,4 +7,5 @@ setup(
     description="A short description of the project.",
     author="MikkelGodsk",
     license="MIT",
+    include_package_data = True,
 )
