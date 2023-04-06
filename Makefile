@@ -35,6 +35,8 @@ requirements: test_environment
 ## Make Dataset
 .ONESHELL:
 data: requirements
+	source $(strip $(CONDA_LOC))/bin/activate
+	conda activate $(ENV_NAME)
 	$(PYTHON_INTERPRETER) src/data/make_dataset.py hydra.verbose=[__main__]
 
 ## Delete all compiled Python files
@@ -53,15 +55,21 @@ test_environment:
 ## Make priors
 .ONESHELL:
 priors: requirements
+	source $(strip $(CONDA_LOC))/bin/activate
+	conda activate $(ENV_NAME)
 	$(PYTHON_INTERPRETER) src/features/compute_class_priors.py
 
 ## Run experiments
 .ONESHELL:
 run_imagenet: requirements
+	source $(strip $(CONDA_LOC))/bin/activate
+	conda activate $(ENV_NAME)
 	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=imagenet --ds_dir=$(DS_DIR)
 
 .ONESHELL:
 run_cmplaces: requirements
+	source $(strip $(CONDA_LOC))/bin/activate
+	conda activate $(ENV_NAME)
 	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=cmplaces --ds_dir=$(DS_DIR)
 
 #################################################################################
