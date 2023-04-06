@@ -64,13 +64,13 @@ priors: requirements
 run_imagenet: requirements
 	source $(strip $(CONDA_LOC))/bin/activate
 	conda activate $(ENV_NAME)
-	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=imagenet --ds_dir=$(DS_DIR)
+	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=ImageNet --ds_dir=$(DS_DIR)
 
 .ONESHELL:
 run_cmplaces: requirements
 	source $(strip $(CONDA_LOC))/bin/activate
 	conda activate $(ENV_NAME)
-	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=cmplaces --ds_dir=$(DS_DIR)
+	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=CMPlaces --ds_dir=$(DS_DIR)
 
 #################################################################################
 # PROJECT RULES                                                                 #
