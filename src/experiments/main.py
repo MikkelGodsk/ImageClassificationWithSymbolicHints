@@ -38,14 +38,13 @@ img_clf_t = Union[ResNet50.LitResNet50Model, VGG16.LitVGG16Model]
 text_clf_t = BERT.LitBERTModel
 
 ## Models ##
-def get_img_classifier(dataset_name=None) -> img_clf_t:
+def get_img_classifier(ds_dir: str, dataset_name:str) -> img_clf_t:
     if dataset_name.lower() == "imagenet":
         resnet50_clf: ResNet50.LitResNet50Model = ResNet50.LitResNet50Model()
         return resnet50_clf
-
     elif dataset_name.lower() == "cmplaces":
         # Load VGG16
-        vgg16_clf: VGG16.LitVGG16Model = VGG16.LitVGG16Model()
+        vgg16_clf: VGG16.LitVGG16Model = VGG16.LitVGG16Model(os.path.join(ds_dir, 'CMPlaces'))
         return vgg16_clf
     else:
         raise ValueError
@@ -147,11 +146,12 @@ def experiment1(
     train_text_ds: DataHandler.TextModalityDS,
     load_bert=True,
     dataset_name: str=None,
+    ds_dir: str=None
 ) -> Tuple[text_clf_t, img_clf_t]:
     """
         1) We trained a BERT-based classifier on the text modality and evaluated both the text and image classifier on their respective modalities to get unimodal baseline performances;
     """
-    img_clf = get_img_classifier(dataset_name=dataset_name)
+    img_clf = get_img_classifier(dataset_name=dataset_name, ds_dir=ds_dir)
     text_clf = get_text_classifier(
         train_text_ds=train_text_ds, load_bert=load_bert, dataset_name=dataset_name
     )
@@ -701,7 +701,8 @@ def main(*args, **kwargs):
             bimodal_val_ds=bimodal_val_ds,
             train_text_ds=train_text_ds,
             load_bert=not train_bert,
-            dataset_name=dataset_name
+            dataset_name=dataset_name,
+            ds_dir=ds_dir
         )
         text_clf: text_clf_t = models[0]
         img_clf: img_clf_t = models[1]
