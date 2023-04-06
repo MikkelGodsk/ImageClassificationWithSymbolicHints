@@ -3,7 +3,7 @@ ImageClassificationWithSymbolicHints
 
 This repository contains the code for our paper "Image Classification With Symbolic Hints" (*INSERT HYPERLINK*). Here we use a budget-friendly fusion scheme for classifiers which is derived in `Derivation.pdf`.
 
-If you use any of our code in this repo, please cite *INSERT CITATION*.
+If you use any of our code, please cite *INSERT CITATION*.
 
 ## How to run this project:
 - `git clone https://github.com/MikkelGodsk/ImageClassificationWithSymbolicHints.git`
@@ -28,7 +28,7 @@ The code was run on the main cluster of DTU. Here we used
 - 600GB of storage space for the datasets and models.
 
 ## Third party files
-I use 
+We use 
 - `reliability_diagrams.py` from https://github.com/hollance/reliability-diagrams, and 
 - `mapping.json` from https://github.com/DominikFilipiak/imagenet-to-wikidata-mapping (see https://www.tib-op.org/ojs/index.php/bis/article/view/65 for licence)
 
