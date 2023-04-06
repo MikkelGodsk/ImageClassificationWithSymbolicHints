@@ -9,8 +9,6 @@ If you use any of our code in this repo, please cite *INSERT CITATION*.
 - `git clone https://github.com/MikkelGodsk/ImageClassificationWithSymbolicHints.git`
 - Fill in `conf/data/data.yml` with URLs to dataset files and the directory to store the dataset in.
 - Fill in `DS_DIR` in the makefile to be the folder in which you will store both ImageNet and CMPlaces.
-- `make requirements`
-- `conda activate Image_classification_with_symbolic_hints`
 - `make data`
 - `make priors`
 - `make run_cmplaces` or `make run_imagenet`
