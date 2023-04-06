@@ -18,6 +18,8 @@ class LitResNet50Model(LitModel):
         # Note: The new version of torch will only run on v100 and not a100.
 
         self.net = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2).to(gpu)
+        self.name = "ResNet50"
+        self.M = 2048
 
     def preprocess(self, x):
         return x.cuda()

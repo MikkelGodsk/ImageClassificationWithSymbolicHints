@@ -9,19 +9,19 @@ from src.experiments.main import *
 
 
 # Parameters
-dataset = "CMPlaces"  # "ImageNet" #"CMPlaces"#"ImageNet"      # Overwrite in main
+dataset_name = "CMPlaces"  # "ImageNet" #"CMPlaces"#"ImageNet"      # Overwrite in main
 
 
 # Other stuff related to the dataset
-num_classes = 1000 if dataset.lower() == "imagenet" else 205
-bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
+num_classes = 1000 if dataset_name.lower() == "imagenet" else 205
+bert_embedding_dim = 1024 if dataset_name.lower() == "imagenet" else 768
 bert_model_name = (
-    "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
+    "bert-large-cased" if dataset_name.lower() == "imagenet" else "bert-base-cased"
 )
 
 log_prior_class_probs = None
 try:
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         log_prior_class_probs = torch.Tensor(np.loadtxt("imagenet_prior.txt"))
     else:
         log_prior_class_probs = torch.Tensor(np.loadtxt("cmplaces_train_prior.txt"))
@@ -33,11 +33,11 @@ except FileNotFoundError:
 
 # Overwrite functions from main for convenience
 def get_img_classifier() -> img_clf_t:
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         resnet50_clf: ResNet50.LitResNet50Model = ResNet50.LitResNet50Model()
         return resnet50_clf
 
-    elif dataset.lower() == "cmplaces":
+    elif dataset_name.lower() == "cmplaces":
         # Load VGG16
         vgg16_clf: VGG16.LitVGG16Model = VGG16.LitVGG16Model()
         return vgg16_clf
@@ -46,7 +46,7 @@ def get_img_classifier() -> img_clf_t:
 
 
 def get_text_classifier(load_bert: bool, train_text_ds=None):
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         bert_params = {
             "learning_rate": 0.0005008982647821122,
             "adam_epsilon": 1e-08,
@@ -58,7 +58,7 @@ def get_text_classifier(load_bert: bool, train_text_ds=None):
             "bert_model_name": bert_model_name,
         }
 
-    elif dataset.lower() == "cmplaces":
+    elif dataset_name.lower() == "cmplaces":
         # Train BERT
         bert_params = {
             "learning_rate": 0.0006870443398072322,
@@ -78,10 +78,10 @@ def get_text_classifier(load_bert: bool, train_text_ds=None):
             n_epochs=5,
             model_version="Train_BERT",
         )[0]
-        torch.save(text_clf.state_dict(), "BERT_model_" + dataset.lower())
+        torch.save(text_clf.state_dict(), "BERT_model_" + dataset_name.lower())
     else:
         text_clf: BERT.LitBERTModel = BERT.LitBERTModel(**bert_params)
-        text_clf.load_state_dict(torch.load("BERT_model_" + dataset.lower()))
+        text_clf.load_state_dict(torch.load("BERT_model_" + dataset_name.lower()))
     return text_clf
 
 
@@ -171,7 +171,7 @@ def tune_hparams(
     timeout: int = 86100,
 ):
     global log_prior_class_probs
-    set_dataset(dataset)
+    set_dataset(dataset_name)
 
     text_ds: TextModalityDS = load_text_ds("train_text.json")
     img_ds: ImageModalityDS = load_img_ds("train")  # This call will take a long time...
@@ -203,6 +203,6 @@ if __name__ == "__main__":
             "text_l2_rate": trial.suggest_loguniform("text_l2_rate", 1e-15, 1),
         }
 
-    print("Using dataset {:s}".format(dataset), flush=True)
+    print("Using dataset {:s}".format(dataset_name), flush=True)
     tune_hparams(make_params)
     # raise ValueError("Debugging on validation set done (10 trials)")

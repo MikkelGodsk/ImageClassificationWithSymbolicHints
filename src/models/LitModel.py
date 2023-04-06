@@ -40,7 +40,7 @@ class LitModel(pl.LightningModule, ABC):
 
     def __init__(self, n_bins=25, **kwargs):
         super().__init__()  # **kwargs)
-
+        self.M = None
         self.net = None
         self.softmax = torch.nn.Softmax(dim=-1)
 

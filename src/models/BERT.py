@@ -29,7 +29,9 @@ class LitBERTModel(LitModel):
         self.save_hyperparameters()
 
         self.freeze_net = False
-
+        self.name = "BERT-" + str(bert_embedding_dim)
+        self.M = bert_embedding_dim
+        
         # Model
         self.tokenizer = BertTokenizer.from_pretrained(bert_model_name)
         self.net = BertModel.from_pretrained(bert_model_name).to(gpu)

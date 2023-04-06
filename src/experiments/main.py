@@ -9,6 +9,7 @@ import click
 import pytorch_lightning as pl
 import torch
 import torchmetrics
+import numpy as np
 
 import src.models.BERT as BERT
 import src.models.LitModel as LitModel
@@ -25,30 +26,9 @@ RUN_EXPERIMENT_1 = True
 RUN_EXPERIMENT_2 = True
 RUN_EXPERIMENT_3 = True
 RUN_EXPERIMENT_4 = True
-RUN_EXPERIMENT_5 = False  # Not used in paper
-RUN_EXPERIMENT_6 = False  # Not used in paper
-
-# For debugging we run the experiments on the validation set exclusively to speed it up.
-DEBUG = False
-
-# Parameters
-bert_embedding_dim = None
-bert_model_name = None
-img_clf_name = None
-text_clf_name = None
-
-def set_dataset_main(dataset):
-    set_dataset(dataset)
-    global bert_embedding_dim
-    global bert_model_name
-    global img_clf_name
-    global text_clf_name
-    bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
-    bert_model_name = (
-        "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
-    )
-    img_clf_name = "ResNet50" if dataset.lower() == "imagenet" else "VGG16"
-    text_clf_name = "BERT-{:d}".format(bert_embedding_dim)
+RUN_EXPERIMENT_4C = False # Not used in paper due to poor performance
+RUN_EXPERIMENT_5 = False  # Not used in paper due to poor performance
+RUN_EXPERIMENT_6 = False  # Not used in paper due to poor performance
 
 # Checkpoint path
 checkpoint_path = "/work3/s184399/checkpoints"
@@ -58,15 +38,12 @@ img_clf_t = Union[ResNet50.LitResNet50Model, VGG16.LitVGG16Model]
 text_clf_t = BERT.LitBERTModel
 
 ## Models ##
-def get_img_classifier(dataset_=None) -> img_clf_t:
-    if dataset_ is not None:
-        global dataset
-        dataset = dataset_
-    if dataset.lower() == "imagenet":
+def get_img_classifier(dataset_name=None) -> img_clf_t:
+    if dataset_name.lower() == "imagenet":
         resnet50_clf: ResNet50.LitResNet50Model = ResNet50.LitResNet50Model()
         return resnet50_clf
 
-    elif dataset.lower() == "cmplaces":
+    elif dataset_name.lower() == "cmplaces":
         # Load VGG16
         vgg16_clf: VGG16.LitVGG16Model = VGG16.LitVGG16Model()
         return vgg16_clf
@@ -77,54 +54,57 @@ def get_img_classifier(dataset_=None) -> img_clf_t:
 def get_text_classifier(
     load_bert: bool,
     train_text_ds=None,
-    bert_params=None,
-    dataset_=None,  # Used for calls from outside of main.py
+    bert_hparams=None,
+    dataset_name=None,  # Used for calls from outside of main.py
 ):
-    if dataset_ is not None:
-        global dataset
-        dataset = dataset_
-    if bert_params is None:
-        if dataset.lower() == "imagenet":
-            bert_params = {
+    bert_embedding_dim = 1024 if dataset_name.lower() == "imagenet" else 768
+    bert_model_name = (
+        "bert-large-cased" if dataset_name.lower() == "imagenet" else "bert-base-cased"
+    )
+    if bert_hparams is None:
+        if dataset_name.lower() == "imagenet":
+            bert_hparams = {
                 "learning_rate": 0.0005008982647821122,
                 "adam_epsilon": 1e-08,
                 "weight_decay": 0.0,
                 "dropout_rate": 0.005137990668310669,
                 "top_dense_layer_units": [],
-                "num_classes": num_classes,
+                "num_classes": 1000,
                 "bert_embedding_dim": bert_embedding_dim,
                 "bert_model_name": bert_model_name,
             }
 
-        elif dataset.lower() == "cmplaces":
+        elif dataset_name.lower() == "cmplaces":
             # Train BERT
-            bert_params = {
+            bert_hparams = {
                 "learning_rate": 0.0006870443398072322,
                 "adam_epsilon": 1e-08,
                 "weight_decay": 0.0,
                 "dropout_rate": 0.31547838646677684,
                 "top_dense_layer_units": [],
-                "num_classes": num_classes,
+                "num_classes": 205,
+                "bert_embedding_dim": bert_embedding_dim,
+                "bert_model_name": bert_model_name,
             }  # Found using Optuna (see file tune_BERT_hparams.py)
         else:
             raise ValueError
 
     if not load_bert:
         text_clf: BERT.LitBERTModel = BERT.train_and_evaluate(
-            bert_params,
+            bert_hparams,
             train_ds=text_dataloader(train_text_ds),
             n_epochs=5,
             model_version="Train_BERT",
         )[0]
-        torch.save(text_clf.state_dict(), "BERT_model_" + dataset.lower())
+        torch.save(text_clf.state_dict(), os.path.join('models', "BERT_model_" + dataset_name.lower()))
     else:
-        text_clf: BERT.LitBERTModel = BERT.LitBERTModel(**bert_params)
-        text_clf.load_state_dict(torch.load("BERT_model_" + dataset.lower()))
+        text_clf: BERT.LitBERTModel = BERT.LitBERTModel(**bert_hparams)
+        text_clf.load_state_dict(torch.load(os.path.join('models', "BERT_model_" + dataset_name.lower())))
     return text_clf
 
 
 def evaluate_model(
-    model: pl.LightningModule, dataloader: torch.utils.data.DataLoader, model_name: str
+    model: pl.LightningModule, dataloader: torch.utils.data.DataLoader, model_description: str
 ):
     trainer = pl.Trainer(
         gpus=min(1, torch.cuda.device_count()),
@@ -135,7 +115,7 @@ def evaluate_model(
         enable_model_summary=False,
         enable_progress_bar=False,
     )
-    print('\n\033[91m\033[4mModel "{:s}" results:\033[0m'.format(model_name))
+    print('\n\033[91m\033[4mModel "{:s}" results:\033[0m'.format(model_description))
     performance = trainer.test(model, dataloaders=dataloader)
     print(performance)
     return performance[0]["hp_test_top_1_acc"]
@@ -163,21 +143,17 @@ def print_time(t_prep, t_eval):
 
 
 def experiment1(
-    bimodal_val_ds: BimodalDS,
-    train_text_ds: TextModalityDS,
+    bimodal_val_ds: DataHandler.BimodalDS,
+    train_text_ds: DataHandler.TextModalityDS,
     load_bert=True,
-    dataset_=None,  # Used for calls outside main.py
+    dataset_name: str=None,
 ) -> Tuple[text_clf_t, img_clf_t]:
     """
-    First we train a BERT-based classifier on the text–modality, and download a pre-trained classifier (VGG16) for the
-    image-modality. We evaluate both on the validation set.
+        1) We trained a BERT-based classifier on the text modality and evaluated both the text and image classifier on their respective modalities to get unimodal baseline performances;
     """
-    if dataset_ is not None:
-        global dataset
-        dataset = dataset_
-    img_clf = get_img_classifier()
+    img_clf = get_img_classifier(dataset_name=dataset_name)
     text_clf = get_text_classifier(
-        train_text_ds=train_text_ds, load_bert=load_bert, dataset_=dataset_
+        train_text_ds=train_text_ds, load_bert=load_bert, dataset_name=dataset_name
     )
 
     # Break the calibration to prove a point
@@ -195,7 +171,7 @@ def experiment1(
         evaluate_model(
             text_clf,
             text_dataloader(bimodal_val_ds.text_ds, shuffle=False),
-            "Uncalibrated {:s} based classifier".format(text_clf_name),
+            "Uncalibrated {:s} based classifier".format(text_clf.name),
         )
         eval_text_end = time()
         print_time(0, eval_text_end - eval_text_start)
@@ -203,7 +179,7 @@ def experiment1(
         evaluate_model(
             img_clf,
             img_dataloader(bimodal_val_ds.image_ds, shuffle=False),
-            "Uncalibrated {:s} classifier".format(img_clf_name),
+            "Uncalibrated {:s} classifier".format(img_clf.name),
         )
         eval_img_end = time()
         print_time(0, eval_img_end - eval_img_start)
@@ -212,10 +188,10 @@ def experiment1(
 
 
 def experiment2(
-    text_clf: text_clf_t, img_clf: img_clf_t, bimodal_val_ds: BimodalDS
+    text_clf: text_clf_t, img_clf: img_clf_t, bimodal_val_ds: DataHandler.BimodalDS, dataset_name: str=None, num_classes:int=205,
 ) -> MultimodalModel.NaiveBayesFusion:
     """
-    We then combine them using addition-based fusion and evaluate the fusion model on the validation set.
+        2) We combined the two uncalibrated classifiers using equation (1) and evaluated the fusion model;
     """
     fusion_model: MultimodalModel.NaiveBayesFusion = MultimodalModel.NaiveBayesFusion(
         img_clf, text_clf
@@ -229,8 +205,8 @@ def experiment2(
         evaluate_model(
             fusion_model,
             bimodal_dataloader(bimodal_val_ds, shuffle=False),
-            "Addition-based fusion of uncalibrated {:s} and uncalibrated {:s}".format(
-                img_clf_name, text_clf_name
+            "Naive Bayes fusion of uncalibrated {:s} and uncalibrated {:s}".format(
+                img_clf.name, text_clf.name
             ),
         )
         eval_combined_end = time()
@@ -242,21 +218,22 @@ def experiment2(
         LitModel.reliability_plot(
             fusion_model,
             bimodal_dataloader(bimodal_val_ds, shuffle=False),
-            "Uncalibrated fusion model for {:s}".format(dataset),
+            "Uncalibrated fusion model for {:s}".format(dataset_name),
         )
 
     return fusion_model
 
 
 def experiment3(
-    text_clf: text_clf_t, img_clf: img_clf_t, bimodal_val_ds: BimodalDS
+    text_clf: text_clf_t, img_clf: img_clf_t, bimodal_val_ds: DataHandler.BimodalDS, dataset_name: str=None, num_classes:int=205,
 ) -> Tuple[
     LitModel.CalibratedLitModel,
     LitModel.CalibratedLitModel,
     MultimodalModel.NaiveBayesFusion,
 ]:
     """
-    We calibrate both classifiers and, again, combine them using addition-based fusion and evaluate on the validation set.
+    3) We calibrated both classifiers and evaluated them. This experiment was motivated by Section 2.2 and our hypothesis that the fusion model performs better if we use well-calibrated unimodal classifiers as the base models;
+    4) We combined the calibrated classifiers using equation (1) and evaluated the fusion model;
 
     Note: Reliability plots are also created here.
     """
@@ -267,7 +244,7 @@ def experiment3(
         text_dataloader(
             bimodal_val_ds.text_ds, shuffle=False
         ),  # Large batch size is preferred for calibration
-        model_name="{:s} for {:s}".format(text_clf_name, dataset),
+        model_name="{:s} for {:s}".format(text_clf.name, dataset_name),
         learning_rate=0.3,
         max_iter=50,
     )
@@ -276,13 +253,13 @@ def experiment3(
     calibrated_img_clf: LitModel.CalibratedLitModel = LitModel.calibrate(
         img_clf.cuda(),
         img_dataloader(bimodal_val_ds.image_ds, shuffle=False),
-        model_name="{:s} for {:s}".format(img_clf_name, dataset),
+        model_name="{:s} for {:s}".format(img_clf.name, dataset_name),
         max_iter=50,
         learning_rate=0.1,
     )
     prep_img_end = time()
     calibrated_fusion_model: MultimodalModel.NaiveBayesFusion = (
-        MultimodalModel.NaiveBayesFusion(calibrated_img_clf, calibrated_text_clf)
+        MultimodalModel.NaiveBayesFusion(calibrated_img_clf, calibrated_text_clf, num_classes=num_classes)
     )
     calibrated_fusion_model.estimate_prior_class_probs(
         bimodal_val_ds, n_classes=num_classes
@@ -297,7 +274,7 @@ def experiment3(
     evaluate_model(
         calibrated_text_clf,
         text_dataloader(bimodal_val_ds.text_ds, shuffle=False),
-        "Calibrated {:s} model".format(text_clf_name),
+        "Calibrated {:s} model".format(text_clf.name),
     )
     eval_text_end = time()
     print_time(prep_text_end - prep_text_start, eval_text_end - eval_text_start)
@@ -306,7 +283,7 @@ def experiment3(
     evaluate_model(
         calibrated_img_clf,
         img_dataloader(bimodal_val_ds.image_ds, shuffle=False),
-        "Calibrated {:s} model".format(img_clf_name),
+        "Calibrated {:s} model".format(img_clf.name),
     )
     eval_img_end = time()
     print_time(prep_img_end - prep_img_start, eval_img_end - eval_img_start)
@@ -315,7 +292,7 @@ def experiment3(
     evaluate_model(
         calibrated_fusion_model,
         bimodal_dataloader(bimodal_val_ds, shuffle=False),
-        "Calibrated fusion model",
+        "Calibrated naive Bayes fusion model",
     )
     eval_combined_end = time()
     print_time(
@@ -326,7 +303,7 @@ def experiment3(
     LitModel.reliability_plot(
         calibrated_fusion_model,
         bimodal_dataloader(bimodal_val_ds, shuffle=False),
-        "Calibrated fusion model for {:s}".format(dataset),
+        "Calibrated naive Bayes fusion model for {:s}".format(dataset_name),
     )  # Reliability plots for the constituent classifiers are made in the call to `LitModel.calibrate`
 
     return calibrated_text_clf, calibrated_img_clf, calibrated_fusion_model
@@ -335,29 +312,36 @@ def experiment3(
 def experiment4a(
     text_clf: text_clf_t,
     img_clf: img_clf_t,
-    train_ds: BimodalDS,
-    val_ds: BimodalDS,
+    train_ds: DataHandler.BimodalDS,
+    val_ds: DataHandler.BimodalDS,
     regularization_strength: int = 3e-7,  # Found using `tune_SVM.py`
-    n_classes=None,
+    dataset_name: str=None,
+    n_classes=None,  # For compatibility with older code,
+    n_jobs:int=1,
+    debug=False
 ):
     """
-    We train an SVM on the concatenated embeddings coming from both classifiers and evaluate on the validation set.
+        5) We trained a linear SVM classifier and an XGBoost classifier on the concatenated embeddings coming from both classifiers 
+        (i.e. for this experiment, we stripped the models of their tops) and evaluated it. 
+        The regularization parameter was tuned using the hold-out method (on a validation split of the training set).
     """
-    if n_classes is None:
+    if n_classes is not None:
         n_classes = num_classes  # So this function can be used in tune_SVM.py
+    elif dataset_name is not None:
+        n_classes = 205 if dataset_name.lower() == "cmplaces" else 1000
 
     svm_fusion = MultimodalModel.SVMBasedFusion(
-        img_clf, text_clf, regularization_strength=regularization_strength, n_jobs=6
+        img_clf, text_clf, regularization_strength=regularization_strength, n_jobs=n_jobs
     )
     svm_fusion.cuda()
     prep_svm_start = time()
-    svm_fusion.fit_svm(
+    svm_fusion.fit_top(
         bimodal_dataloader(train_ds, shuffle=True, batch_size=32),
         epochs=1,
-        verbose=DEBUG,
+        verbose=debug,
         n_classes=n_classes,
     )
-    svm_fusion.calibrate_svm(bimodal_dataloader(val_ds, shuffle=True), verbose=DEBUG)
+    svm_fusion.calibrate_top(bimodal_dataloader(val_ds, shuffle=True), verbose=debug)
     prep_svm_end = time()
     eval_svm_start = time()
     evaluate_model(
@@ -371,12 +355,15 @@ def experiment4a(
 def experiment4b(
     text_clf: text_clf_t,
     img_clf: img_clf_t,
-    train_ds: BimodalDS,
-    val_ds: BimodalDS,
+    train_ds: DataHandler.BimodalDS,
+    val_ds: DataHandler.BimodalDS,
     n_epochs=1,
+    dataset_name: str=None,
+    debug=False
 ):
     """
-    We train a logistic regression on the concatenated embeddings coming from both classifiers and evaluate on the validation set.
+        NOT USED. Gave very poor performance.
+        We train a logistic regression on the concatenated embeddings coming from both classifiers and evaluate on the validation set.
     """
     params = {"lr": 0.0003172298313831537, "top_l2_rate": 2.723639829156825e-05}
     fusion_model = MultimodalModel.LogisticRegressionBasedFusion(
@@ -387,7 +374,7 @@ def experiment4b(
     logger = pl.loggers.TensorBoardLogger(
         save_dir="lightning_logs",
         name="Experiments",
-        version="log_reg_fusion_model_{:s}".format(dataset),
+        version="log_reg_fusion_model_{:s}".format(dataset_name),
     )
 
     trainer = pl.Trainer(
@@ -399,7 +386,7 @@ def experiment4b(
         # checkpoint_callback=False,
         enable_checkpointing=False,
         enable_model_summary=False,
-        enable_progress_bar=DEBUG,
+        enable_progress_bar=debug,
         # auto_lr_find = True
     )
     trainer.fit(fusion_model, bimodal_dataloader(train_ds, shuffle=False))
@@ -412,27 +399,88 @@ def experiment4b(
     LitModel.reliability_plot(
         fusion_model,
         bimodal_dataloader(val_ds, shuffle=False),
-        "Logistic regression fusion model for {:s}".format(dataset),
+        "Logistic regression fusion model for {:s}".format(dataset_name),
     )
     return fusion_model
 
 
+def experiment4c(
+    text_clf: text_clf_t,
+    img_clf: img_clf_t,
+    train_ds: DataHandler.BimodalDS,
+    val_ds: DataHandler.BimodalDS,
+    n_classes=None,
+    dataset_name: str=None,
+    cache_dir: str=None,
+    n_jobs:int=1,
+    subsample:bool=False,
+    debug=False
+):
+    """
+        5) We trained a linear SVM classifier and an XGBoost classifier on the concatenated embeddings coming from both classifiers 
+        (i.e. for this experiment, we stripped the models of their tops) and evaluated it. 
+        The regularization parameter was tuned using the hold-out method (on a validation split of the training set).
+
+    """
+    import wandb
+    wandb.init(project="XGBoost fusion")
+    from sklearn.utils.validation import check_is_fitted
+    if n_classes is not None:
+        n_classes = num_classes
+    elif dataset_name is not None:
+        n_classes = 205 if dataset_name.lower() == "cmplaces" else 1000
+
+    xgb_fusion = MultimodalModel.XGBFusion(
+        img_clf, text_clf, n_jobs=n_jobs, cache_dir=cache_dir, enable_subsample=subsample
+    )
+    wandb.watch(xgb_fusion, log_freq=100)
+    prev_clf = None
+    for i in range(100):
+        try:
+            xgb_fusion.cuda()
+            print("n_estimators={:d}".format(i+1))
+            prep_svm_start = time()
+            xgb_fusion.fit_top(
+                bimodal_dataloader(train_ds, shuffle=True, batch_size=32),
+                verbose=debug,
+                n_classes=n_classes,
+                n_estimators=1,
+                xgb_model=prev_clf
+            )
+            check_is_fitted(xgb_fusion.xgc)
+            
+            #xgb_fusion.calibrate_top(bimodal_dataloader(val_ds, shuffle=True), verbose=debug)   # Does not work for whatever reason
+            prep_svm_end = time()
+            eval_svm_start = time()
+            evaluate_model(
+                xgb_fusion, bimodal_dataloader(val_ds, shuffle=False), "XGB-based fusion"
+            )
+            eval_svm_end = time()
+            print_time(prep_svm_end - prep_svm_start, eval_svm_end - eval_svm_start)
+            prev_clf = xgb_fusion.xgc.get_booster()
+        except np.core._exceptions._ArrayMemoryError:
+            break
+    return xgb_fusion
+
 def experiment5(
     fusion_model: MultimodalModel.NaiveBayesFusion,
-    train_ds: BimodalDS,
-    val_ds: BimodalDS,
+    train_ds: DataHandler.BimodalDS,
+    val_ds: DataHandler.BimodalDS,
     n_epochs=1,
     make_plots=True,
     train_log_prior_probs=None,
     val_log_prior_probs=None,
     params=None,
     reset_tops=True,
+    dataset_name: str=None,
+    debug=False
 ) -> MultimodalModel.NaiveBayesFusion:
     """
-    We now fine-tune the addition-based fusion model of the uncalibrated BERT-based classifier and VGG16 on the training-set and evaluate the model on the validation set.
+    NOT USED: Gave very poor performance
+    We now fine-tune the naive Bayes fusion model of the uncalibrated BERT-based classifier and image classifier on the training-set and evaluate the model on the validation set.
     """
     if params is None:
-        if dataset.lower() == "cmplaces":
+        if dataset_name.lower() == "cmplaces":
             # params = {
             #    'img_l2_rate': 0.0011873241371175235,
             #    'lr': 3.2794668207275364e-05/10,
@@ -454,7 +502,7 @@ def experiment5(
                 "text_l2_rate": 2.6700507325691306e-07,
             }
 
-        elif dataset.lower() == "imagenet":
+        elif dataset_name.lower() == "imagenet":
             # params = {
             #    'img_l2_rate': 0.0035909569066556383,
             #    'lr': 1.7673281199723105e-05,
@@ -490,7 +538,7 @@ def experiment5(
     logger = pl.loggers.TensorBoardLogger(
         save_dir="~/bscproj/CMPlaces/lightning_logs",
         name="Experiments",
-        version="Fine-tuned_fusion_model_{:s}".format(dataset),
+        version="Fine-tuned_fusion_model_{:s}".format(dataset_name),
     )
 
     prep_combined_start = time()
@@ -509,7 +557,7 @@ def experiment5(
         # checkpoint_callback=False,
         enable_checkpointing=False,
         enable_model_summary=False,
-        enable_progress_bar=DEBUG,
+        enable_progress_bar=debug,
         # auto_lr_find = True
     )
     trainer.fit(fusion_model, bimodal_dataloader(train_ds, shuffle=False))
@@ -535,13 +583,14 @@ def experiment5(
         LitModel.reliability_plot(
             fusion_model,
             bimodal_dataloader(val_ds, shuffle=False),
-            "Fine-tuned fusion model for {:s}".format(dataset),
+            "Fine-tuned fusion model for {:s}".format(dataset_name),
         )
     return top_1_acc, fusion_model
 
 
-def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalDS):
+def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: DataHandler.BimodalDS, dataset_name: str=None):
     """
+    NOT USED: Gave very poor performance
     We recover the two classifiers after fine-tuning and evaluate them on the validation set invidiually.
     We also examine their reliability plots to see if the classifiers become better calibrated in the process.
     """
@@ -558,7 +607,7 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
     evaluate_model(
         img_clf,
         img_dataloader(img_ds, shuffle=False),
-        "Recovered (fine-tuned) {:s} model".format(img_clf_name),
+        "Recovered (fine-tuned) {:s} model".format(img_clf.name),
     )
     eval_img_end = time()
     print_time(0, eval_img_end - eval_img_start)
@@ -566,7 +615,7 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
     evaluate_model(
         text_clf,
         text_dataloader(text_ds, shuffle=False),
-        "Recovered (fine-tuned) {:s} model".format(text_clf_name),
+        "Recovered (fine-tuned) {:s} model".format(text_clf.name),
     )
     eval_text_end = time()
     print_time(0, eval_text_end - eval_text_start)
@@ -577,12 +626,12 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
     LitModel.reliability_plot(
         img_clf,
         img_dataloader(img_ds, shuffle=False),
-        "Recovered (fine-tuned) {:s} model for {:s}".format(img_clf_name, dataset),
+        "Recovered (fine-tuned) {:s} model for {:s}".format(img_clf.name, dataset_name),
     )
     LitModel.reliability_plot(
         text_clf,
         text_dataloader(text_ds, shuffle=False),
-        "Recovered (fine-tuned) {:s} model for {:s}".format(text_clf_name, dataset),
+        "Recovered (fine-tuned) {:s} model for {:s}".format(text_clf.name, dataset_name),
     )
 
 
@@ -590,26 +639,52 @@ def experiment6(fusion_model: MultimodalModel.NaiveBayesFusion, val_ds: BimodalD
 @click.option(
     "--dataset",
     default="CMPlaces",
-    help="Dataset to use. Either 'CMPlaces' or 'ImageNet'",
+    help="Dataset to use. Either 'CMPlaces' or 'ImageNet'"
+)
+@click.option(
+    "--ds_dir",
+    default="/work3/s184399",
+    help="The directory in which the datasets are located"
+)
+@click.option(
+    "--n_workers",
+    default=1,
+    help="The number of workers used for XGBoost and SVM"
+)
+@click.option(
+    "--xgb_subsample",
+    default=0,
+    help="Whether to subsample the dataset in XGBoost"
+)
+@click.option(
+    "--debug",
+    default=0,
+    help="Runs the code on the validation set instead to see if we can overfit a model to it"
 )
 def main(*args, **kwargs):
-    global dataset
-    dataset = kwargs["dataset"]
-    set_dataset_main(dataset)
+    dataset_name = kwargs["dataset"]
+    ds_dir = kwargs['ds_dir']
+    n_jobs = kwargs['n_workers']
+    debug = kwargs['debug'] > 0
+    #set_dataset(dataset_name)   # Only relic of a bad practice (hopefully)
+    dhandler = DataHandler(ds_name=dataset_name, ds_dir=ds_dir)
     train_bert = not os.path.isfile(
-        "BERT_model_" + dataset
+        os.path.join('models', "BERT_model_" + dataset_name.lower())
     )  # Must be true the first time, then set to false the second time (for each dataset)
 
 
     print(
-        "\n\033[1m\033[34mUsing dataset: {:s}\033[0m".format(dataset)
+        "\n\033[1m\033[34mUsing dataset: {:s}\033[0m".format(dataset_name)
     )  # Formatting codes: \033[Xm where X is an integer
 
     # Datasets
-    train_text_ds: TextModalityDS = load_text_ds("train_text.json")
-    val_text_ds: TextModalityDS = load_text_ds("val_text.json")
-    val_img_ds: ImageModalityDS = load_img_ds("val")
-    bimodal_val_ds: BimodalDS = BimodalDS(image_ds=val_img_ds, text_ds=val_text_ds)
+    if debug:
+        train_text_ds: DataHandler.TextModalityDS = dhandler.load_text_ds("val_text.json")
+    else:
+        train_text_ds: DataHandler.TextModalityDS = dhandler.load_text_ds("train_text.json")
+    val_text_ds: DataHandler.TextModalityDS = dhandler.load_text_ds("val_text.json")
+    val_img_ds: DataHandler.ImageModalityDS = dhandler.load_img_ds("val")
+    bimodal_val_ds: DataHandler.BimodalDS = dhandler.BimodalDS(image_ds=val_img_ds, text_ds=val_text_ds)
 
     # Experiment 1
     if (
@@ -617,6 +692,7 @@ def main(*args, **kwargs):
         or RUN_EXPERIMENT_2
         or RUN_EXPERIMENT_3
         or RUN_EXPERIMENT_4
+        or RUN_EXPERIMENT_4C
         or RUN_EXPERIMENT_5
         or RUN_EXPERIMENT_6
     ):
@@ -625,6 +701,7 @@ def main(*args, **kwargs):
             bimodal_val_ds=bimodal_val_ds,
             train_text_ds=train_text_ds,
             load_bert=not train_bert,
+            dataset_name=dataset_name
         )
         text_clf: text_clf_t = models[0]
         img_clf: img_clf_t = models[1]
@@ -633,22 +710,29 @@ def main(*args, **kwargs):
     if RUN_EXPERIMENT_2 or RUN_EXPERIMENT_5 or RUN_EXPERIMENT_6:
         print("\n\033[1m\033[34mExperiment 2\033[0m")
         fusion_model: MultimodalModel.NaiveBayesFusion = experiment2(
-            text_clf=text_clf, img_clf=img_clf, bimodal_val_ds=bimodal_val_ds
+            text_clf=text_clf, img_clf=img_clf, bimodal_val_ds=bimodal_val_ds, dataset_name=dataset_name, num_classes=dhandler.num_classes,
         )
 
     # Experiment 3
     if RUN_EXPERIMENT_3:
         print("\n\033[1m\033[34mExperiment 3\033[0m")
         experiment3(
-            text_clf=text_clf, img_clf=img_clf, bimodal_val_ds=bimodal_val_ds
+            text_clf=text_clf, img_clf=img_clf, bimodal_val_ds=bimodal_val_ds, dataset_name=dataset_name, num_classes=dhandler.num_classes,
         )  # For now, we do not reuse the models here
 
-    # Places205 training set
-    if (RUN_EXPERIMENT_4 or RUN_EXPERIMENT_5 or RUN_EXPERIMENT_6) and not DEBUG:
-        train_img_ds: ImageModalityDS = load_img_ds(
+    # Load image training set (is huge)
+    if (RUN_EXPERIMENT_4 or RUN_EXPERIMENT_4C or RUN_EXPERIMENT_5 or RUN_EXPERIMENT_6) and not debug:
+        train_img_ds: DataHandler.ImageModalityDS = dhandler.load_img_ds(
             "train"
         )  # This call will take a long time... (Approx. 40m)
-        bimodal_train_ds: BimodalDS = BimodalDS(
+        bimodal_train_ds: DataHandler.BimodalDS = dhandler.BimodalDS(
+            image_ds=train_img_ds, text_ds=train_text_ds
+        )
+    elif debug:
+        train_img_ds: DataHandler.ImageModalityDS = dhandler.load_img_ds(
+            "val"
+        )  # This call will take a long time... (Approx. 40m)
+        bimodal_train_ds: DataHandler.BimodalDS = dhandler.BimodalDS(
             image_ds=train_img_ds, text_ds=train_text_ds
         )
 
@@ -658,36 +742,57 @@ def main(*args, **kwargs):
         experiment4a(
             text_clf,
             img_clf,
-            bimodal_train_ds if not DEBUG else bimodal_val_ds,
+            bimodal_train_ds,
             bimodal_val_ds,
-            regularization_strength=3e-7 if dataset.lower() == "cmplaces" else 3e-3,
+            regularization_strength=3e-7 if dataset_name.lower() == "cmplaces" else 3e-3,
+            dataset_name=dataset_name,
+            n_jobs=n_jobs,
+            debug=debug
         )
         # experiment4b(
         #    text_clf,
         #    img_clf,
-        #    bimodal_train_ds if not DEBUG else bimodal_val_ds,
-        #    bimodal_val_ds
+        #    bimodal_train_ds if not debug else bimodal_val_ds,
+        #    bimodal_val_ds,
+        #    debug=debug
         # )
+
+    if RUN_EXPERIMENT_4C:
+        print("\n\033[1m\033[34mExperiment 4c\033[0m")
+        experiment4c(
+            text_clf,
+            img_clf,
+            bimodal_train_ds,
+            bimodal_val_ds,
+            dataset_name=dataset_name,
+            cache_dir=ds_dir,
+            n_jobs=n_jobs,
+            subsample=kwargs['xgb_subsample'] > 0,
+            debug=debug
+        )
+
 
     # Experiment 5
     if RUN_EXPERIMENT_5 or RUN_EXPERIMENT_6:
         print("\n\033[1m\033[34mExperiment 5\033[0m")
         train_val_split = 0.8
-        train_text_split, val_text_split = split_text_ds(train_text_ds, train_val_split)
-        train_img_split, val_img_split = split_img_ds(train_img_ds, train_val_split)
-        train_split = BimodalDS(image_ds=train_img_split, text_ds=train_text_split)
+        train_text_split, val_text_split = dhandler.split_text_ds(train_text_ds, train_val_split)
+        train_img_split, val_img_split = dhandler.split_img_ds(train_img_ds, train_val_split)
+        train_split = dhandler.BimodalDS(image_ds=train_img_split, text_ds=train_text_split)
         res = experiment5(
             fusion_model=fusion_model,
-            train_ds=train_split,  # bimodal_train_ds if not DEBUG else bimodal_val_ds,
+            train_ds=train_split,  # bimodal_train_ds if not debug else bimodal_val_ds,
             val_ds=bimodal_val_ds,
             n_epochs=1,
+            dataset_name=dataset_name,
+            debug=debug
         )  # For now, fine_tuned_fusion_model refers to fusion_model, and fusion_model is trained
         fine_tuned_fusion_model: MultimodalModel.NaiveBayesFusion = res[1]
 
     # Experiment 6
     if RUN_EXPERIMENT_6:
         print("\n\033[1m\033[34mExperiment 6\033[0m")
-        experiment6(fusion_model=fine_tuned_fusion_model, val_ds=bimodal_val_ds)
+        experiment6(fusion_model=fine_tuned_fusion_model, val_ds=bimodal_val_ds, dataset_name=dataset_name)
 
 
 if __name__ == "__main__":

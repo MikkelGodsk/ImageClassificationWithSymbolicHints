@@ -12,11 +12,11 @@ reg_strengths = [
 ][trial_no - 1]
 print(reg_strengths)
 
-dataset = "ImageNet"  # 'CMPlaces'
+dataset_name = "ImageNet"  # 'CMPlaces'
 
-print("Using dataset {:s}".format(dataset), flush=True)
+print("Using dataset {:s}".format(dataset_name), flush=True)
 
-set_dataset(dataset)
+set_dataset(dataset_name)
 text_ds: TextModalityDS = load_text_ds("train_text.json")
 img_ds: ImageModalityDS = load_img_ds("train")  # This call will take a long time...
 # text_ds: TextModalityDS = load_text_ds('val_text.json')   # For debugging only
@@ -32,7 +32,7 @@ models: Tuple[text_clf_t, img_clf_t] = experiment1(
     bimodal_val_ds=val_split,
     train_text_ds=train_text_ds,
     load_bert=False,
-    dataset_=dataset,
+    dataset_name=dataset_name,
 )
 bert_clf: text_clf_t = models[0]
 vgg16_clf: img_clf_t = models[1]
@@ -46,5 +46,5 @@ for reg_strength in reg_strengths:
         train_split,
         val_split,
         regularization_strength=reg_strength,
-        n_classes=205 if dataset.lower() == "cmplaces" else 1000,
+        n_classes=205 if dataset_name.lower() == "cmplaces" else 1000,
     )

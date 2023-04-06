@@ -1,9 +1,11 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Callable
+import os
 
 import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import SGDClassifier
 from tqdm import tqdm
+import xgboost as xgb
 
 from src.models.LitModel import LitModel, torch
 
@@ -51,6 +53,7 @@ class NaiveBayesFusion(LitModel):
         )
         self.mask = None  # If P(c)=0, then we define the prediction to zero. Otherwise it results in NaNs
         self.freeze_net = False
+        self.name = "Naive Bayes fusion"
 
     def forward_no_top(self, x):
         raise NotImplemented("Not used in naive Bayes fusion")
@@ -169,6 +172,7 @@ class LogisticRegressionBasedFusion(LitModel):
             classifiers
         )
         self._top = torch.nn.LazyLinear(out_features)
+        self.name = "Logistic regression fusion"
 
     def forward_no_top(self, x):
         with torch.no_grad():
@@ -254,8 +258,9 @@ class SVMBasedFusion(LitModel):
             base_estimator=self.svm, n_jobs=1, cv="prefit"
         )
         self._cuda = False
+        self.name = "SVM-based fusion"
 
-    def fit_svm(
+    def fit_top(
         self, ds: torch.utils.data.DataLoader, epochs=1, n_classes=205, verbose=True
     ):
         classes = np.arange(0, n_classes)
@@ -273,7 +278,7 @@ class SVMBasedFusion(LitModel):
         super().cuda()
         self._cuda = True
 
-    def calibrate_svm(self, ds: torch.utils.data.DataLoader, verbose=True):
+    def calibrate_top(self, ds: torch.utils.data.DataLoader, verbose=True):
         z_stack = []
         labels = []
         for x, y in tqdm(ds, desc="Calibration", disable=not verbose):
@@ -309,6 +314,156 @@ class SVMBasedFusion(LitModel):
 
     def _configure_optim_train(self):
         raise NotImplemented("Not used in SVM-based fusion")
+
+
+class XGBDataIterator(xgb.DataIter):
+    """
+        Sources: https://xgboost.readthedocs.io/en/stable/tutorials/external_memory.html
+        https://github.com/dmlc/xgboost/
+    """
+    def __init__(self, xgb_model: "XGBFusion", dataloader):
+        self.xgb_model = xgb_model
+        self._classifiers: List[LitModel] = xgb_model.classifiers
+        self._len = len(dataloader)
+        self.__dataloader_non_iter = dataloader
+        cache_dir = xgb_model.cache_dir
+        super().__init__(cache_prefix=os.path.join(cache_dir,'cache'))  # Enable caching
+    
+    def next(self, input_data: Callable):
+        # Get batch from torch dataloader
+        if self._it >= self._len:
+            return 0
+        X, y = next(self._dataloader)
+
+        # Embed batches through ANN embedders (classifiers without top)
+        X = self.xgb_model.forward_no_top(X).numpy().astype(np.float16) #torch.quantize_per_tensor(self.xgb_model.forward_no_top(X), dtype=torch.qint8).int_repr().numpy() #.astype(np.float16)   # Reduce precision to make it feasible memorywise
+
+        # Convert embeddings from torch tensor to numpy and give to XGBoost
+        input_data(data=X, label=y) #, feature_names=list(range(X.shape[1])), feature_types=X.dtype)   # Somehow it stopped complaining?
+
+        self._it += 1
+        return 1
+
+    def reset(self):
+        """Reset the iterator to its beginning"""
+        self._it = 0
+        self._dataloader = iter(self.__dataloader_non_iter)
+        return self
+
+
+class XGBFusion(LitModel):
+    """
+        Fusion using XGBoost
+    """
+    def __init__(
+        self,
+        *classifiers: List[LitModel],
+        n_jobs=1,
+        cache_dir:str=None,
+        enable_subsample:bool = False
+    ):
+        super().__init__()
+        self.classifiers: List[LitModel] = torch.nn.ModuleList(classifiers)
+        self.xgc: xgb.XGBClassifier = None  #xgb.XGBClassifier(n_jobs=n_jobs)
+        self.calib_xgc: CalibratedClassifierCV = None   # This part doesn't work yet for whatever reason
+        self.n_jobs = n_jobs
+        self._cuda = False
+        self.cache_dir = cache_dir
+        self.name = "XGBoost fusion"
+        self.subsample = enable_subsample
+        if not os.path.isdir(cache_dir):
+            os.mkdir(cache_dir)
+
+    def fit_top(
+        self, ds: torch.utils.data.DataLoader, n_classes=205, verbose=True, n_estimators=100, xgb_model=None
+    ) -> "XGBFusion":
+        """
+            Fits the top XGBoost classifier. 
+
+            References:
+            Train: https://xgboost.readthedocs.io/en/stable/python/python_api.html#module-xgboost.training
+            Examples: https://xgboost.readthedocs.io/en/stable/python/examples/index.html
+            Parameters: https://xgboost.readthedocs.io/en/stable/parameter.html
+        """
+        # Get dataset with embedder as preprocessing
+        it = XGBDataIterator(self, ds)
+        self.train_Xy = xgb.DMatrix(
+            it, 
+            #feature_names = list(range(4864)),  # Somehow it stopped complaining?
+        )
+        assert n_classes > 1, "n_classes has value {n_classes}"
+
+        # Train model
+        params = {
+            'objective': 'multi:softmax', 
+            'num_class': n_classes,
+            'tree_method': 'gpu_hist', #'hist', #'gpu_hist',
+            #'n_estimators': n_estimators
+        }
+        if self.subsample:
+            params['subsample'] = 0.1 #params['subsample'] = 0.5   # Otherwise we run out of memory
+            params['sampling_method'] = 'gradient_based'
+
+        xgc = xgb.train(
+            params=params,
+            dtrain=self.train_Xy,
+            xgb_model=xgb_model,
+            num_boost_round=n_estimators
+        )
+
+        # Wrap in scikit-learn classifier to enable predicting probabilities (`.predict_proba`)
+        self.xgc = xgb.XGBClassifier(objective='multi:softmax', num_class=n_classes, n_jobs=self.n_jobs)
+        self.xgc._Booster = xgc
+        return self
+
+    def top(self):
+        raise NotImplemented("Not used in XGB-based fusion")  # Because it is not at torch model
+
+    def cuda(self):
+        super().cuda()
+        self._cuda = True
+
+    def calibrate_top(self, ds: torch.utils.data.DataLoader, verbose=True) -> "XGBFusion":
+        z_stack = []
+        labels = []
+        for x, y in tqdm(ds, desc="Calibration", disable=not verbose):
+            z_stack.append(self.forward_no_top(x))
+            labels.append(y)
+
+        z_stack = np.vstack(z_stack)
+        labels = np.hstack(labels)
+        self.calib_xgc = CalibratedClassifierCV(
+            base_estimator=self.xgc, n_jobs=1, cv="prefit"
+        )
+        self.calib_xgc.fit(z_stack, labels)
+        return self
+
+    def forward_no_top(self, x) -> np.array:
+        with torch.no_grad():
+            z_stack = (
+                torch.hstack(
+                    [clf.forward_no_top(x_i) for x_i, clf in zip(x, self.classifiers)]
+                )
+                .detach()
+                .cpu()
+                #.numpy()
+            )
+        return z_stack
+
+    def forward_no_softmax(self, x):
+        raise NotImplemented("Not used in XGB-based fusion")
+
+    def forward(self, x) -> torch.Tensor:
+        model = self.calib_xgc if self.calib_xgc is not None else self.xgc
+        assert model is not None, "Model not fit yet. Please fit (and optionally calibrate) the model first."
+        z_stack = self.forward_no_top(x)
+        probs = torch.tensor(model.predict_proba(z_stack), device='cpu')
+        if self._cuda:
+            probs = probs.cuda()
+        return probs
+
+    def _configure_optim_train(self):
+        raise NotImplemented("Not used in XGB-based fusion")
 
 
 #############

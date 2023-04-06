@@ -1,13 +1,13 @@
 from src.experiments.main import *
 from src.models.BERT import *
 
-dataset = "ImageNet"
+dataset_name = "ImageNet"
 
 
-num_classes = 1000 if dataset.lower() == "imagenet" else 205
-bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
+num_classes = 1000 if dataset_name.lower() == "imagenet" else 205
+bert_embedding_dim = 1024 if dataset_name.lower() == "imagenet" else 768
 bert_model_name = (
-    "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
+    "bert-large-cased" if dataset_name.lower() == "imagenet" else "bert-base-cased"
 )
 
 
@@ -62,7 +62,7 @@ def hyperparam_tuning(
 ):
     pruner: optuna.pruners.BasePruner = optuna.pruners.MedianPruner()
     logger_fn = lambda: pl.loggers.TensorBoardLogger(
-        save_dir="~/bscproj/CMPlaces", name="BERT_hparam_" + dataset
+        save_dir="~/bscproj/CMPlaces", name="BERT_hparam_" + dataset_name
     )
     study = optuna.create_study(direction="maximize", pruner=pruner)
     study.optimize(
@@ -98,7 +98,7 @@ def tune_hparams(
 ):
     from dataset import load_text_ds, set_dataset, text_dataloader
 
-    set_dataset(dataset)
+    set_dataset(dataset_name)
     train_val_split = 0.8
     full_train_ds = load_text_ds("train_text.json")
     t = int(len(full_train_ds) * train_val_split)

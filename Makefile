@@ -4,6 +4,9 @@
 # GLOBALS                                                                       #
 #################################################################################
 
+# DS_DIR to be manually set
+DS_DIR := /work3/s184399
+
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
 PROFILE = default
@@ -61,13 +64,13 @@ priors: requirements
 run_imagenet: requirements
 	source $(strip $(CONDA_LOC))/bin/activate
 	conda activate $(ENV_NAME)
-	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=imagenet
+	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=imagenet --ds_dir=$(DS_DIR)
 
 .ONESHELL:
 run_cmplaces: requirements
 	source $(strip $(CONDA_LOC))/bin/activate
 	conda activate $(ENV_NAME)
-	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=cmplaces
+	$(PYTHON_INTERPRETER) src/experiments/main.py --dataset=cmplaces --ds_dir=$(DS_DIR)
 
 #################################################################################
 # PROJECT RULES                                                                 #

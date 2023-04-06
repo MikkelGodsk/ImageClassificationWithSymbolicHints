@@ -24,6 +24,8 @@ class LitVGG16Model(LitModel):
     def __init__(self):
         super().__init__()
         self.net = KitModel(weight_file=self._vgg16_weight_file).to(gpu)
+        self.name = "VGG16"
+        self.M = 4096
 
     def preprocess(self, x):
         return x.cuda()

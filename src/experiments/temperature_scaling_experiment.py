@@ -8,7 +8,7 @@ from src.experiments.main import *
 
 # For test: train_val_split is changed and validation set is split.
 
-dataset = "CMPlaces"  # "CMPlaces"#'ImageNet'
+dataset_name = "CMPlaces"  # "CMPlaces"#'ImageNet'
 val_split = (
     True  # Whether to use a small partition of the training set, or the validation set
 )
@@ -16,7 +16,7 @@ train_val_split = 0.98  # Used if val_split is True
 
 # Setup
 print("Obtaining dataset", flush=True)
-set_dataset(dataset)
+set_dataset(dataset_name)
 if not val_split:
     val_text_ds: TextModalityDS = load_text_ds("val_text.json")
     val_img_ds: ImageModalityDS = load_img_ds("val")
@@ -35,7 +35,7 @@ else:
 # log priors
 log_prior_class_probs = None
 try:
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         log_prior_class_probs = torch.Tensor(
             np.loadtxt("imagenet_prior.txt")
         ).unsqueeze(0)
@@ -53,19 +53,19 @@ log_prior_class_probs[~mask] = 0.0
 
 
 # Get classifiers (functions should've been put elsewhere for reusability across experiments.)
-num_classes = 1000 if dataset.lower() == "imagenet" else 205
-bert_embedding_dim = 1024 if dataset.lower() == "imagenet" else 768
+num_classes = 1000 if dataset_name.lower() == "imagenet" else 205
+bert_embedding_dim = 1024 if dataset_name.lower() == "imagenet" else 768
 bert_model_name = (
-    "bert-large-cased" if dataset.lower() == "imagenet" else "bert-base-cased"
+    "bert-large-cased" if dataset_name.lower() == "imagenet" else "bert-base-cased"
 )
 
 
 def get_img_classifier() -> img_clf_t:
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         resnet50_clf: ResNet50.LitResNet50Model = ResNet50.LitResNet50Model()
         return resnet50_clf
 
-    elif dataset.lower() == "cmplaces":
+    elif dataset_name.lower() == "cmplaces":
         # Load VGG16
         vgg16_clf: VGG16.LitVGG16Model = VGG16.LitVGG16Model()
         return vgg16_clf
@@ -74,7 +74,7 @@ def get_img_classifier() -> img_clf_t:
 
 
 def get_text_classifier(load_bert: bool, train_text_ds=None):
-    if dataset.lower() == "imagenet":
+    if dataset_name.lower() == "imagenet":
         bert_params = {
             "learning_rate": 0.0005008982647821122,
             "adam_epsilon": 1e-08,
@@ -86,7 +86,7 @@ def get_text_classifier(load_bert: bool, train_text_ds=None):
             "bert_model_name": bert_model_name,
         }
 
-    elif dataset.lower() == "cmplaces":
+    elif dataset_name.lower() == "cmplaces":
         # Train BERT
         bert_params = {
             "learning_rate": 0.0006870443398072322,
@@ -106,10 +106,10 @@ def get_text_classifier(load_bert: bool, train_text_ds=None):
             n_epochs=5,
             model_version="Train_BERT",
         )[0]
-        torch.save(text_clf.state_dict(), "BERT_model_" + dataset.lower())
+        torch.save(text_clf.state_dict(), "BERT_model_" + dataset_name.lower())
     else:
         text_clf: BERT.LitBERTModel = BERT.LitBERTModel(**bert_params)
-        text_clf.load_state_dict(torch.load("BERT_model_" + dataset.lower()))
+        text_clf.load_state_dict(torch.load("BERT_model_" + dataset_name.lower()))
     return text_clf
 
 
@@ -168,7 +168,7 @@ for i, img_temp in enumerate(temperatures):  # Image classifier temperatures alo
         accuracies[i, j] = torchmetrics.functional.accuracy(z, labels)
 
 np.savetxt(
-    "Temperature_scaling_accuracies_{:s}".format(dataset) + "_val_split.txt"
+    "Temperature_scaling_accuracies_{:s}".format(dataset_name) + "_val_split.txt"
     if val_split
     else ".txt",
     accuracies,

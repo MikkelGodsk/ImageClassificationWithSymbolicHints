@@ -97,3 +97,10 @@ models/
 lightning_logs/
 cmplaces_prior.txt
 imagenet_prior.txt
+wandb/
+jobscript_mem_profile.sh
+fit_xgboost_copy.sh
+fit_xgboost_increasing_n_est.sh
+fit_xgboost.sh
+reliability_plots/
+hydra_test.py
