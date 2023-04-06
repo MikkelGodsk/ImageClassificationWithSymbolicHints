@@ -1,7 +1,9 @@
 ImageClassificationWithSymbolicHints
 ==============================
 
-This repository contains the code for the paper "Image Classification With Symbolic Hints" by Jørgensen et al. 2023. Here we use a budget-friendly fusion scheme for classifiers which is derived in `Derivation.pdf`.
+This repository contains the code for our paper "Image Classification With Symbolic Hints" (*INSERT HYPERLINK*). Here we use a budget-friendly fusion scheme for classifiers which is derived in `Derivation.pdf`.
+
+If you use any of our code in this repo, please cite *INSERT CITATION*.
 
 ## How to run this project:
 - `git clone https://github.com/MikkelGodsk/ImageClassificationWithSymbolicHints.git`
