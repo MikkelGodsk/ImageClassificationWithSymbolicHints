@@ -5,6 +5,8 @@ This repository contains the code for our paper "Image Classification With Symbo
 
 If you use any of our code, please cite *INSERT CITATION*.
 
+[![DOI](https://zenodo.org/badge/565897879.svg)](https://zenodo.org/doi/10.5281/zenodo.10055587)
+
 ## How to run this project:
 - `git clone https://github.com/MikkelGodsk/ImageClassificationWithSymbolicHints.git`
 - Fill in `conf/data/data.yml` with URLs to dataset files and the directory to store the dataset in.
