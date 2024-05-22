@@ -1,9 +1,25 @@
 ImageClassificationWithSymbolicHints
 ==============================
 
-This repository contains the code for our paper "Image Classification With Symbolic Hints" (*INSERT HYPERLINK*). Here we use a budget-friendly fusion scheme for classifiers which is derived in `Derivation.pdf`.
+This repository contains the code for our paper "Image Classification With Symbolic Hints" (https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0301360). Here we use a budget-friendly fusion scheme for classifiers which is derived in `Derivation.pdf`.
 
-If you use any of our code, please cite *INSERT CITATION*.
+If you use any of our code, please use this citation:
+```
+@article{10.1371/journal.pone.0301360,
+    doi = {10.1371/journal.pone.0301360},
+    author = {Jørgensen, Mikkel Godsk AND Tětková, Lenka AND Hansen, Lars Kai},
+    journal = {PLOS ONE},
+    publisher = {Public Library of Science},
+    title = {Image classification with symbolic hints using limited resources},
+    year = {2024},
+    month = {05},
+    volume = {19},
+    url = {https://doi.org/10.1371/journal.pone.0301360},
+    pages = {1-13},
+    abstract = {Typical machine learning classification benchmark problems often ignore the full input data structures present in real-world classification problems. Here we aim to represent additional information as “hints” for classification. We show that under a specific realistic conditional independence assumption, the hint information can be included by late fusion. In two experiments involving image classification with hints taking the form of text metadata, we demonstrate the feasibility and performance of the fusion scheme. We fuse the output of pre-trained image classifiers with the output of pre-trained text models. We show that calibration of the pre-trained models is crucial for the performance of the fused model. We compare the performance of the fusion scheme with a mid-level fusion scheme based on support vector machines and find that these two methods tend to perform quite similarly, albeit the late fusion scheme has only negligible computational costs.},
+    number = {5},
+}
+```
 
 [![DOI](https://zenodo.org/badge/565897879.svg)](https://zenodo.org/doi/10.5281/zenodo.10055587)
 
